@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings - Healthcore Patient Portal</title>
+    <meta name="description" content="Manage your Healthcore account preferences, security settings, and notifications.">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+        <div class="navbar-layout">
+            <a class="navbar-brand-custom" href="index.html">
+                <span class="logo-icon">+</span> Healthcore
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon">☰</span>
+            </button>
+
+            <div class="collapse navbar-collapse justify-content-center" id="navbarMain">
+                <ul class="navbar-nav gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="index.html">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="index.html#appointments-section">
+                            Appointments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="index.html#queue-section">
+                            Waiting Status
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="index.html#records-section">
+                            Medical Records
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Profile & Quick Actions -->
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-custom p-2 rounded-circle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+                    🌙
+                </button>
+
+                <div class="dropdown">
+                    <button class="profile-dropdown-btn dropdown-toggle" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="user-avatar">J</span> John Doe
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom" aria-labelledby="profileDropdown">
+                        <li>
+                            <a class="dropdown-item" href="profile.html">
+                                👤 My Profile
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item active" href="settings.html">
+                                ⚙️ Account Settings
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-primary" href="admin.html">
+                                🛡️ Staff Admin Portal
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="#" id="logoutBtn">
+                                🚪 Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-wrapper">
+        <h2 class="manrope-800 mb-1">Account & System Settings</h2>
+        <p class="text-muted mb-4">Customize your patient experience, communication preferences, and security options.</p>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                
+                <!-- Notification Settings -->
+                <div class="card-custom mb-4">
+                    <div class="card-header-custom">
+                        <span>Notification Preferences</span>
+                    </div>
+                    <div class="card-body-custom">
+                        <form id="notificationsForm">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="smsNotif" checked>
+                                <label class="form-check-label manrope-600" for="smsNotif">SMS Queue Position Alerts</label>
+                                <small class="text-muted d-block">Receive instant text updates when your queue ticket is called.</small>
+                            </div>
+                            <hr>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="emailNotif" checked>
+                                <label class="form-check-label manrope-600" for="emailNotif">Email Appointment Reminders</label>
+                                <small class="text-muted d-block">Receive email alerts 24 hours and 2 hours before scheduled appointments.</small>
+                            </div>
+                            <hr>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="labNotif" checked>
+                                <label class="form-check-label manrope-600" for="labNotif">Lab Result Alerts</label>
+                                <small class="text-muted d-block">Get notified immediately when new blood work or diagnostic reports are uploaded.</small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary-custom btn-sm mt-2">Save Preferences</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Password & Security -->
+                <div class="card-custom mb-4">
+                    <div class="card-header-custom">
+                        <span>Security & Password</span>
+                    </div>
+                    <div class="card-body-custom">
+                        <form id="passwordChangeForm">
+                            <div class="mb-3">
+                                <label class="form-label manrope-600">Current Password</label>
+                                <input type="password" class="form-control form-control-custom" placeholder="••••••••" required>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label manrope-600">New Password</label>
+                                    <input type="password" class="form-control form-control-custom" placeholder="Minimum 8 characters" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label manrope-600">Confirm New Password</label>
+                                    <input type="password" class="form-control form-control-custom" placeholder="Re-enter new password" required>
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="twoFactorAuth">
+                                <label class="form-check-label manrope-600" for="twoFactorAuth">Enable Two-Factor Authentication (2FA)</label>
+                                <small class="text-muted d-block">Require an SMS code when logging into your Healthcore account.</small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary-custom btn-sm">Update Security</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Theme & Visuals -->
+                <div class="card-custom">
+                    <div class="card-header-custom">
+                        <span>Appearance & Display</span>
+                    </div>
+                    <div class="card-body-custom">
+                        <div class="mb-3">
+                            <label class="form-label manrope-600">Theme Mode</label>
+                            <div class="d-flex gap-3">
+                                <button type="button" class="btn btn-outline-custom flex-grow-1" id="setLightThemeBtn">
+                                    ☀️ Light Theme
+                                </button>
+                                <button type="button" class="btn btn-outline-custom flex-grow-1" id="setDarkThemeBtn">
+                                    🌙 Dark Theme
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Side Card: Security Summary -->
+            <div class="col-lg-4">
+                <div class="card-custom">
+                    <div class="card-header-custom">
+                        <span>Security Summary</span>
+                    </div>
+                    <div class="card-body-custom">
+                        <div class="alert alert-success py-2 small mb-3">
+                            🔒 Account Protected with SSL Encryption
+                        </div>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-2">✔️ Last Password Change: 30 days ago</li>
+                            <li class="mb-2">✔️ Active Session: Chrome / Windows 11</li>
+                            <li class="mb-2">✔️ HIPAA Compliant Health Portal</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container-custom" id="toastContainer"></div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p class="mb-1">© 2026 Healthcore Hospital Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
