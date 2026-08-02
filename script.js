@@ -74,6 +74,84 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
 
     // ----------------------------------------------------------------------
+    // 2b. Dynamic Navbar Active Link & ScrollSpy Logic
+    // ----------------------------------------------------------------------
+    const navLinks = document.querySelectorAll('.nav-link-custom');
+
+    function setActiveNavLink(targetLink) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        if (targetLink) {
+            targetLink.classList.add('active');
+        }
+    }
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            setActiveNavLink(this);
+
+            if (href && href.includes('#')) {
+                const targetId = href.substring(href.indexOf('#'));
+                const targetEl = document.querySelector(targetId);
+                if (targetEl) {
+                    e.preventDefault();
+                    targetEl.scrollIntoView({ behavior: 'smooth' });
+                    history.pushState(null, null, targetId);
+                }
+            }
+        });
+    });
+
+    // Auto-update active link based on current hash or scroll position
+    function checkCurrentSection() {
+        if (window.scrollY < 120 && navLinks.length > 0) {
+            setActiveNavLink(navLinks[0]);
+            return;
+        }
+
+        const hash = window.location.hash;
+        if (hash) {
+            const matchingLink = document.querySelector(`.nav-link-custom[href*="${hash}"]`);
+            if (matchingLink) {
+                setActiveNavLink(matchingLink);
+                return;
+            }
+        }
+    }
+
+    // Scrollspy using IntersectionObserver
+    const trackedSections = document.querySelectorAll('section[id], div[id]');
+    if ('IntersectionObserver' in window && trackedSections.length > 0) {
+        const observerOptions = {
+            root: null,
+            rootMargin: '-20% 0px -60% 0px',
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && window.scrollY >= 120) {
+                    const id = entry.target.getAttribute('id');
+                    const matchingLink = document.querySelector(`.nav-link-custom[href*="#${id}"]`);
+                    if (matchingLink) {
+                        setActiveNavLink(matchingLink);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        trackedSections.forEach(section => observer.observe(section));
+    }
+
+    window.addEventListener('scroll', () => {
+        if (window.scrollY < 120 && navLinks.length > 0) {
+            setActiveNavLink(navLinks[0]);
+        }
+    });
+
+    checkCurrentSection();
+
+    // ----------------------------------------------------------------------
     // 3. Render Dashboard State (Appointments & Queue)
     // ----------------------------------------------------------------------
     function renderDashboard() {
@@ -276,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-3 p-3 bg-light rounded border text-dark">
+                <div class="mt-3 p-3 rounded border">
                     <strong>Physician Remarks:</strong>
                     <p class="mb-0 text-muted">All metabolic and hematologic parameters are well within reference ranges. Continue present diet and exercise program.</p>
                 </div>
@@ -296,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <li>No ST-T wave abnormalities detected</li>
                     </ul>
                 </div>
-                <div class="p-3 bg-light rounded border text-dark">
+                <div class="p-3 rounded border">
                     <strong>Physician Impression:</strong>
                     <p class="mb-0 text-muted">Healthy cardiac rhythm without ischemic changes. Follow-up consultation scheduled in 6 months.</p>
                 </div>

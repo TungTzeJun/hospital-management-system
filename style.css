@@ -37,27 +37,35 @@
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-    --bg-body: #0b132b;
+    --bg-body: #000000;
     --bg-card: #1c2541;
     --bg-card-subtle: #111827;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
-    --text-muted: #64748b;
+    --text-muted: #94a3b8;
     --border-color: #334155;
     --navbar-bg: #1c2541;
     --primary-light: rgba(2, 132, 199, 0.2);
     --accent-teal-light: rgba(13, 148, 136, 0.2);
 }
 
+[data-theme="dark"],
+[data-theme="dark"] body {
+    background-color: #000000 !important;
+}
+
 /* General Reset & Typography */
-body {
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+html, body {
     background-color: var(--bg-body);
     color: var(--text-primary);
     transition: background-color var(--transition-normal), color var(--transition-normal);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .manrope-800 { font-weight: 800; }
@@ -560,4 +568,263 @@ footer {
 
 .table-search-bar {
     max-width: 320px;
+}
+
+/* Comprehensive Dark Mode Overrides */
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--bg-card-subtle) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .border,
+[data-theme="dark"] .border-start,
+[data-theme="dark"] .border-end,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-bottom {
+    border-color: var(--border-color) !important;
+}
+
+/* Modal Inner Boxes & Open Cards */
+[data-theme="dark"] .modal-content-custom {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-content-custom .border,
+[data-theme="dark"] .modal-content-custom .rounded,
+[data-theme="dark"] .modal-content-custom .bg-light {
+    background-color: var(--bg-card-subtle) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Form Controls and Select Options */
+[data-theme="dark"] .form-control-custom,
+[data-theme="dark"] .form-select-custom,
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-card-subtle);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] .form-select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-check-label {
+    color: var(--text-primary);
+}
+
+/* Alert Overrides in Dark Mode */
+[data-theme="dark"] .alert-info {
+    background-color: rgba(2, 132, 199, 0.18);
+    border-color: rgba(2, 132, 199, 0.35);
+    color: #7dd3fc;
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fcd34d;
+}
+
+/* Badges with light text in dark mode */
+[data-theme="dark"] .badge.bg-warning.text-dark,
+[data-theme="dark"] .badge.bg-info.text-dark {
+    color: #0f172a !important;
+}
+
+/* Table in Dark Mode */
+[data-theme="dark"] .records-table tr {
+    background-color: var(--bg-card-subtle);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .records-table th,
+[data-theme="dark"] .records-table td {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Horizontal Divider HR */
+[data-theme="dark"] hr,
+[data-theme="dark"] .dropdown-divider {
+    border-color: var(--border-color);
+    opacity: 0.25;
+}
+
+/* Dropdown Button (Profile Button) — Dark Mode */
+[data-theme="dark"] .profile-dropdown-btn {
+    background-color: var(--bg-card-subtle);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-dropdown-btn:hover,
+[data-theme="dark"] .profile-dropdown-btn:focus,
+[data-theme="dark"] .profile-dropdown-btn.show {
+    background-color: var(--bg-card);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
+}
+
+/* Dropdown Menu Panel — Dark Mode */
+[data-theme="dark"] .dropdown-menu-custom {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .dropdown-menu-custom .dropdown-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-menu-custom .dropdown-item:hover {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .dropdown-menu-custom .dropdown-item.active {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+/* Override Bootstrap's default dropdown-menu background in dark mode */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .dropdown-menu .dropdown-item {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .dropdown-menu .dropdown-item:hover,
+[data-theme="dark"] .dropdown-menu .dropdown-item:focus {
+    background-color: var(--primary-light) !important;
+    color: var(--primary-color) !important;
+}
+
+/* ============================================================
+   ADDITIONAL DARK MODE TEXT & ELEMENT OVERRIDES
+   ============================================================ */
+
+/* All general text inside cards/sections */
+[data-theme="dark"] .card-custom,
+[data-theme="dark"] .card-body-custom,
+[data-theme="dark"] .card-header-custom {
+    color: var(--text-primary);
+}
+
+/* Paragraph and span text inside cards */
+[data-theme="dark"] .card-custom p,
+[data-theme="dark"] .card-custom span,
+[data-theme="dark"] .card-custom small,
+[data-theme="dark"] .card-custom label,
+[data-theme="dark"] .card-custom strong,
+[data-theme="dark"] .card-custom h1,
+[data-theme="dark"] .card-custom h2,
+[data-theme="dark"] .card-custom h3,
+[data-theme="dark"] .card-custom h4,
+[data-theme="dark"] .card-custom h5,
+[data-theme="dark"] .card-custom h6 {
+    color: var(--text-primary);
+}
+
+/* Specifically the muted paragraph in appointment card */
+[data-theme="dark"] .card-custom p.text-secondary,
+[data-theme="dark"] .card-custom p.text-muted,
+[data-theme="dark"] .card-custom small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Doctor info box text (Dr. Sarah Lee, dept label) */
+[data-theme="dark"] .doctor-info-box h6,
+[data-theme="dark"] .doctor-info-box small,
+[data-theme="dark"] .doctor-info-box p {
+    color: var(--text-primary) !important;
+}
+
+/* Queue card labels: "YOUR QUEUE TICKET", "Currently Serving", "Est. Wait Time" */
+[data-theme="dark"] .queue-box p,
+[data-theme="dark"] .queue-box small,
+[data-theme="dark"] .queue-details small,
+[data-theme="dark"] .queue-details p {
+    color: var(--text-muted) !important;
+}
+
+/* Outline buttons in dark mode */
+[data-theme="dark"] .btn-outline-custom {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+[data-theme="dark"] .btn-outline-custom:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-card-subtle);
+    border-color: var(--text-muted);
+}
+
+/* Action tiles text */
+[data-theme="dark"] .action-tile strong,
+[data-theme="dark"] .action-tile small {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .action-tile small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Main wrapper general text */
+[data-theme="dark"] .main-wrapper p,
+[data-theme="dark"] .main-wrapper span,
+[data-theme="dark"] .main-wrapper small,
+[data-theme="dark"] .main-wrapper strong {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .main-wrapper .text-muted,
+[data-theme="dark"] .main-wrapper small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Live Queue Badge — Dark Mode */
+[data-theme="dark"] .queue-badge-live {
+    background-color: rgba(22, 163, 74, 0.2);
+    color: #4ade80;
+    border: 1px solid rgba(22, 163, 74, 0.35);
 }

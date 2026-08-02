@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Admin Portal - Healthcore Hospital Management</title>
     <meta name="description" content="Healthcore Hospital Administration Portal - Manage patient medical records, live queue tickets, and appointments.">
-    <link rel="stylesheet" href="style.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
@@ -120,7 +120,7 @@
 
         <!-- Live Queue Controller Card -->
         <section class="card-custom mb-4" id="queue-controller">
-            <div class="card-header-custom bg-light">
+            <div class="card-header-custom">
                 <div class="d-flex align-items-center gap-2">
                     <span>⚡ Outpatient Live Queue Controller</span>
                     <span class="queue-badge-live"><span class="pulse-dot"></span> Active Station: Room 304</span>
@@ -136,7 +136,7 @@
                     </div>
                     <div class="col-lg-5 p-4">
                         <div class="d-flex justify-content-between mb-2">
-                            <span>Next Ticket in Line: <strong class="text-dark" id="adminNextTicket">#55</strong></span>
+                            <span>Next Ticket in Line: <strong class="text-primary" id="adminNextTicket">#55</strong></span>
                             <span>Total Waiting: <strong class="text-warning" id="adminWaitingCount">13 Patients</strong></span>
                         </div>
                         <div class="progress mb-3" style="height: 12px;">

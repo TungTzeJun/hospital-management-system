@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Healthcore - Patient Portal & Hospital Management</title>
-    <meta name="description" content="Healthcore Patient Portal - Manage appointments, track live queue status, and access medical records seamlessly.">
-    <link rel="stylesheet" href="style.css">
+    <meta name="description"
+        content="Healthcore Patient Portal - Manage appointments, track live queue status, and access medical records seamlessly.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
@@ -21,7 +22,8 @@
                 <span class="logo-icon">+</span> Healthcore
             </a>
 
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarMain">
                 <span class="navbar-toggler-icon">☰</span>
             </button>
 
@@ -52,13 +54,15 @@
 
             <!-- Profile & Quick Actions -->
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-custom p-2 rounded-circle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+                <button class="btn btn-outline-custom p-2 rounded-circle" id="themeToggleBtn"
+                    title="Toggle Light/Dark Theme">
                     🌙
                 </button>
 
                 <div class="dropdown">
-                    <button class="profile-dropdown-btn dropdown-toggle" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="user-avatar">J</span> John Doe
+                    <button class="profile-dropdown-btn dropdown-toggle" type="button" id="profileDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="user-avatar">J</span> Lebron James
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-custom" aria-labelledby="profileDropdown">
                         <li>
@@ -97,11 +101,13 @@
         <section class="welcome-header">
             <div class="row align-items-center">
                 <div class="col-lg-8">
-                    <h2 class="manrope-800 mb-2">Welcome back, John! 👋</h2>
-                    <p class="mb-0 opacity-90">Here is your health overview and upcoming schedules for Healthcore General Hospital.</p>
+                    <h2 class="manrope-800 mb-2">Welcome back, Lebron! 👋</h2>
+                    <p class="mb-0 opacity-90">Here is your health overview and upcoming schedules for Healthcore
+                        General Hospital.</p>
                 </div>
                 <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                    <button class="btn btn-light manrope-700 px-4 py-2" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">
+                    <button class="btn btn-light manrope-700 px-4 py-2" data-bs-toggle="modal"
+                        data-bs-target="#bookAppointmentModal">
                         + Book New Appointment
                     </button>
                 </div>
@@ -134,7 +140,7 @@
 
         <!-- Dashboard Widgets Grid -->
         <div class="card-grid">
-            
+
             <!-- Appointment Card Widget -->
             <div class="card-custom appointment-card" id="appointments-section">
                 <div class="card-header-custom">
@@ -159,7 +165,8 @@
                     </p>
 
                     <div class="mt-auto d-flex gap-2">
-                        <button class="btn btn-primary-custom flex-grow-1" data-bs-toggle="modal" data-bs-target="#appointmentDetailModal">
+                        <button class="btn btn-primary-custom flex-grow-1" data-bs-toggle="modal"
+                            data-bs-target="#appointmentDetailModal">
                             View Appointment Details
                         </button>
                         <button class="btn btn-outline-custom" id="rescheduleBtn" title="Reschedule">
@@ -196,7 +203,8 @@
                     </div>
 
                     <div class="mt-auto d-flex gap-2">
-                        <button class="btn btn-primary-custom flex-grow-1" data-bs-toggle="modal" data-bs-target="#queueDetailModal">
+                        <button class="btn btn-primary-custom flex-grow-1" data-bs-toggle="modal"
+                            data-bs-target="#queueDetailModal">
                             View Queue Tracker
                         </button>
                         <button class="btn btn-outline-custom" id="refreshQueueBtn" title="Refresh Live Ticket">
@@ -240,7 +248,8 @@
                                 <td>Healthcore Lab #2</td>
                                 <td><span class="badge bg-success">Completed</span></td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-custom view-record-btn" data-record-id="REC-001">View</button>
+                                    <button class="btn btn-sm btn-outline-custom view-record-btn"
+                                        data-record-id="REC-001">View</button>
                                 </td>
                             </tr>
                             <tr>
@@ -250,7 +259,8 @@
                                 <td>Main Clinic Room 304</td>
                                 <td><span class="badge bg-success">Completed</span></td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-custom view-record-btn" data-record-id="REC-002">View</button>
+                                    <button class="btn btn-sm btn-outline-custom view-record-btn"
+                                        data-record-id="REC-002">View</button>
                                 </td>
                             </tr>
                             <tr>
@@ -260,7 +270,8 @@
                                 <td>Primary Care Dept</td>
                                 <td><span class="badge bg-secondary">Archived</span></td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-custom view-record-btn" data-record-id="REC-003">View</button>
+                                    <button class="btn btn-sm btn-outline-custom view-record-btn"
+                                        data-record-id="REC-003">View</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -327,7 +338,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label manrope-600">Reason for Visit / Symptoms</label>
-                            <textarea class="form-control form-control-custom" rows="3" placeholder="Briefly describe your symptoms or visit purpose..."></textarea>
+                            <textarea class="form-control form-control-custom" rows="3"
+                                placeholder="Briefly describe your symptoms or visit purpose..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer modal-footer-custom">
@@ -348,7 +360,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="p-3 bg-light rounded mb-3 border text-dark">
+                    <div class="p-3 rounded mb-3 border">
                         <div class="d-flex justify-content-between mb-2">
                             <small class="text-muted">REFERENCE #</small>
                             <strong class="text-primary">APP-884920</strong>
@@ -408,12 +420,15 @@
                     </div>
 
                     <div class="progress mt-4" style="height: 10px;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 78%" id="queueProgressBar"></div>
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                            role="progressbar" style="width: 78%" id="queueProgressBar"></div>
                     </div>
-                    <small class="text-muted d-block mt-2">Queue is moving approximately 1 patient every 1.5 minutes.</small>
+                    <small class="text-muted d-block mt-2">Queue is moving approximately 1 patient every 1.5
+                        minutes.</small>
                 </div>
                 <div class="modal-footer modal-footer-custom">
-                    <button type="button" class="btn btn-outline-custom" id="simNextQueueBtn">Simulate Next Patient</button>
+                    <button type="button" class="btn btn-outline-custom" id="simNextQueueBtn">Simulate Next
+                        Patient</button>
                     <button type="button" class="btn btn-primary-custom" data-bs-dismiss="modal">Got It</button>
                 </div>
             </div>
@@ -432,7 +447,8 @@
                     <!-- Dynamic Record Content Loaded via JS -->
                 </div>
                 <div class="modal-footer modal-footer-custom">
-                    <button type="button" class="btn btn-outline-custom" onclick="window.print()">🖨️ Print Report</button>
+                    <button type="button" class="btn btn-outline-custom" onclick="window.print()">🖨️ Print
+                        Report</button>
                     <button type="button" class="btn btn-primary-custom" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
