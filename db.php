@@ -3,10 +3,11 @@
 // Database connection (PDO + MySQL)
 // Edit these 4 values to match your XAMPP / hosting setup.
 // ============================================================
-$DB_HOST = 'localhost';
-$DB_NAME = 'healthcore';
-$DB_USER = 'root';
-$DB_PASS = '';
+$DB_HOST = getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: 'localhost';
+$DB_PORT = getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306';
+$DB_NAME = getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'healthcore';
+$DB_USER = getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'root';
+$DB_PASS = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '';
 
 // ------------------------------------------------------------
 // Staff invite code required on register.php to create a DOCTOR
@@ -37,7 +38,7 @@ if (!class_exists(PDO::class) || !extension_loaded('pdo_mysql')) {
 
 try {
     $pdo = new PDO(
-        "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4",
+        "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4",
         $DB_USER,
         $DB_PASS,
         [

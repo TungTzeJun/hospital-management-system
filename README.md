@@ -103,7 +103,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 | Symptom | Fix |
 |---|---|
-| **"Database connection failed"** | Check `db.php` credentials, confirm MySQL is running, and import `schema.sql`. On Railway's PHP/Nixpacks build, `composer.json` declares the required `pdo_mysql` extension; redeploy the latest commit. If you use a custom Dockerfile or another PHP host and see **"could not find driver"**, enable the PDO MySQL extension in that runtime. |
+| **"Database connection failed"** | Check the database host and credentials, and import `schema.sql`. On Railway, add a MySQL service and reference its `MYSQLHOST`, `MYSQLPORT`, `MYSQLDATABASE`, `MYSQLUSER`, and `MYSQLPASSWORD` variables in the PHP service's Variables tab; `db.php` reads these automatically. On Railway's PHP/Nixpacks build, `composer.json` declares the required `pdo_mysql` extension. For a custom Dockerfile or another PHP host, configure the database variables and enable PDO MySQL in that runtime. |
 | **Blank white page** | Check XAMPP's PHP error log, or temporarily add `ini_set('display_errors', 1); error_reporting(E_ALL);` to the top of the failing file. |
 | **"No patient profile found"** | You're logged in as a `patient`-role user with no row in the `patients` table — shouldn't happen via `register.php`. |
 
