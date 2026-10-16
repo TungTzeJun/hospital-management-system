@@ -1,10 +1,10 @@
-# 🏥 Healthcore — Hospital Management Portal
+# Healthcore — Hospital Management Portal
 
 A PHP + MySQL patient/staff portal with real-time appointment booking, per-department queue tracking, and role-based dashboards. No framework, no Composer, no build step — runs on plain Apache/PHP/MySQL (XAMPP-friendly).(HTML INCLUDED IN PHP FILE)
 
 ---
 
-## 🚀 Quick Start (5 minutes)
+## Quick Start (5 minutes)
 
 | Step | What to do |
 |---|---|
@@ -52,7 +52,7 @@ After this migration, each doctor's/admin's **Call Next** action marks only the 
 
 New patients can also self-register at `register.php`. Self-registering as a doctor requires the staff invite code set in `db.php` (`DOCTOR_INVITE_CODE`).
 
-### 🎬 Suggested walkthrough (~2 min)
+### Suggested walkthrough (~2 min)
 
 1. Log in as **patient** → book an appointment → watch the live "waiting" queue widget.
 2. Log out, log in as **admin** → call the next ticket for that department, mark the appointment complete.
@@ -64,7 +64,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 ---
 
-## 📁 Project structure
+## Project structure
 
 | File | Purpose |
 |---|---|
@@ -99,7 +99,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 ---
 
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -109,4 +109,4 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 ---
 
-© 2026 Healthcore Hospital Management System
+i love fish sticks :)
