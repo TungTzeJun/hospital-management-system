@@ -31,6 +31,10 @@ for ($slot = $slotStart; $slot <= $slotEnd; $slot = $slot->modify('+30 minutes')
 
 define('APPT_SLOTS', $appointmentSlots);
 
+if (!class_exists(PDO::class) || !extension_loaded('pdo_mysql')) {
+    die('Database connection failed: the PHP PDO MySQL driver (pdo_mysql) is not enabled. Enable it for the PHP version used by your web server or hosting account, then restart PHP/web server.');
+}
+
 try {
     $pdo = new PDO(
         "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4",
