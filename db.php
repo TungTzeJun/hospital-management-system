@@ -18,13 +18,18 @@ $DB_PASS = '';
 define('DOCTOR_INVITE_CODE', 'healthcore2026');
 
 // ------------------------------------------------------------
-// Bookable time slots. This is the single source of truth for
-// what "a slot" is — used by the booking form (index.php), the
-// AJAX availability check (get_slots.php), and the server-side
-// double-booking guard (index.php's book_appointment handler).
-// Change this array to change the slots hospital-wide.
+// Generate 30-minute appointment slots from 8:30 AM through 8:30 PM.
+// This is shared by the booking form, availability check, and server guard.
 // ------------------------------------------------------------
-define('APPT_SLOTS', ['09:00 AM', '10:30 AM', '02:00 PM', '04:15 PM']);
+$slotStart = new DateTimeImmutable('08:30');
+$slotEnd = new DateTimeImmutable('20:30');
+$appointmentSlots = [];
+
+for ($slot = $slotStart; $slot <= $slotEnd; $slot = $slot->modify('+30 minutes')) {
+    $appointmentSlots[] = $slot->format('h:i A');
+}
+
+define('APPT_SLOTS', $appointmentSlots);
 
 try {
     $pdo = new PDO(
