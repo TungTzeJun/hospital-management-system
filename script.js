@@ -15,11 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
             time: '10:30 AM',
             status: 'Confirmed'
         },
-        queue: {
-            myTicket: 67,
-            currentlyServing: 54,
-            estimatedWaitMins: 20
-        },
         profile: {
             name: 'John Doe',
             email: 'john.doe@example.com',
@@ -175,71 +170,135 @@ document.addEventListener('DOMContentLoaded', () => {
         if (detailDept) detailDept.textContent = appState.appointment.department;
         if (detailDate) detailDate.textContent = appState.appointment.date;
         if (detailTime) detailTime.textContent = appState.appointment.time;
-
-        // Queue
-        const myQueueEl = document.getElementById('myQueueNumber');
-        const currentQueueEl = document.getElementById('currentQueueNumber');
-        const estimatedWaitEl = document.getElementById('estimatedWaitTime');
-
-        if (myQueueEl) myQueueEl.textContent = appState.queue.myTicket;
-        if (currentQueueEl) currentQueueEl.textContent = appState.queue.currentlyServing;
-
-        const ahead = Math.max(0, appState.queue.myTicket - appState.queue.currentlyServing);
-        const estMins = ahead * 1.5;
-        if (estimatedWaitEl) estimatedWaitEl.textContent = `${Math.ceil(estMins)} mins`;
-
-        // Queue Modal elements
-        const modalMyQueue = document.getElementById('modalMyQueue');
-        const modalServingQueue = document.getElementById('modalServingQueue');
-        const modalAheadQueue = document.getElementById('modalAheadQueue');
-        const queueProgressBar = document.getElementById('queueProgressBar');
-
-        if (modalMyQueue) modalMyQueue.textContent = appState.queue.myTicket;
-        if (modalServingQueue) modalServingQueue.textContent = appState.queue.currentlyServing;
-        if (modalAheadQueue) modalAheadQueue.textContent = ahead;
-
-        if (queueProgressBar) {
-            const progress = Math.min(100, Math.round((appState.queue.currentlyServing / appState.queue.myTicket) * 100));
-            queueProgressBar.style.width = `${progress}%`;
-        }
     }
 
     renderDashboard();
 
     // ----------------------------------------------------------------------
-    // 4. Live Queue Simulators & Refresh
+    // 4. Live Queue Status (real, server-backed, polled — not simulated)
     // ----------------------------------------------------------------------
-    function advanceQueue() {
-        if (appState.queue.currentlyServing < appState.queue.myTicket) {
-            appState.queue.currentlyServing += 1;
-            saveState();
-            renderDashboard();
-            showToast(`Now Serving Ticket #${appState.queue.currentlyServing}`, '🎫');
-        } else {
-            showToast('Your turn! Please report to Room 304', '🔔');
+    // Pulls the actual row from `queue_state` (and today's real ticket
+    // numbers) via queue_status.php and refreshes every few seconds, on
+    // both the patient dashboard and the admin/doctor queue controller.
+    // Whichever elements exist on the current page get updated; the ones
+    // that don't apply (e.g. admin-only IDs on the patient page) are
+    // simply skipped.
+    let lastKnownServing = null;
+    // Tracks which of this patient's own ticket numbers we've already
+    // shown the "your turn" popup for, so it fires exactly once per
+    // ticket (not on every 5-second poll while it stays their turn).
+    let turnNotifiedForTicket = null;
+
+    // Patient dashboard: one queue widget for whichever single department
+    // their next appointment is in (department comes from the widget's
+    // own data-department attribute — see index.php).
+    function updateQueueDomPatient(data) {
+        const myQueueEl = document.getElementById('myQueueNumber');
+        const currentQueueEl = document.getElementById('currentQueueNumber');
+        const patientsAheadEl = document.getElementById('patientsAheadCount');
+        const estimatedWaitEl = document.getElementById('estimatedWaitTime');
+        const noTicketNoteEl = document.getElementById('queueNoTicketNote');
+        const callStatusEl = document.getElementById('queueCallStatus');
+
+        if (typeof data.myTicket !== 'undefined') {
+            const hasMyTicket = data.myTicket !== null;
+            if (myQueueEl) myQueueEl.textContent = hasMyTicket ? data.myTicket : '—';
+            if (patientsAheadEl) patientsAheadEl.textContent = hasMyTicket ? data.ahead : '—';
+            if (estimatedWaitEl) estimatedWaitEl.textContent = hasMyTicket ? `${data.estWaitMins} mins` : '—';
+            // Only relevant once a ticket actually exists — e.g. midnight
+            // rolls over while the page is open and today's ticket appears.
+            if (noTicketNoteEl) noTicketNoteEl.style.display = hasMyTicket ? 'none' : '';
+        }
+        if (callStatusEl) callStatusEl.classList.toggle('d-none', !data.myTurn);
+        if (currentQueueEl) currentQueueEl.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
+
+        // Patient "Queue Tracker" modal
+        const modalMyQueue = document.getElementById('modalMyQueue');
+        const modalServingQueue = document.getElementById('modalServingQueue');
+        const modalAheadQueue = document.getElementById('modalAheadQueue');
+        if (typeof data.myTicket !== 'undefined') {
+            if (modalMyQueue) modalMyQueue.textContent = data.myTicket !== null ? data.myTicket : '—';
+            if (modalAheadQueue) modalAheadQueue.textContent = data.ahead;
+        }
+        if (modalServingQueue) modalServingQueue.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
+
+        // Toast the patient when a new ticket gets called while on the page
+        if (lastKnownServing !== null && data.currentlyServing > lastKnownServing) {
+            if (!data.myTurn) {
+                showToast(`Now Serving Ticket #${data.currentlyServing}`, '🎫');
+            }
+        }
+        lastKnownServing = data.currentlyServing;
+
+        // Dedicated "it's your turn" popup — checked on every poll (not
+        // just when currentlyServing changes) so it also fires if the
+        // page is opened right as it becomes this patient's turn, and
+        // fires exactly once per ticket via turnNotifiedForTicket.
+        if (data.myTurn && turnNotifiedForTicket !== data.myTicket) {
+            showToast('Your turn now! Please proceed to the counter.', '🔔', 10000);
+            turnNotifiedForTicket = data.myTicket;
         }
     }
 
-    const refreshQueueBtn = document.getElementById('refreshQueueBtn');
-    if (refreshQueueBtn) {
-        refreshQueueBtn.addEventListener('click', () => {
-            advanceQueue();
+    function pollPatientQueue() {
+        const queueSection = document.getElementById('queue-section');
+        if (!queueSection) return;
+        const department = queueSection.dataset.department || '';
+        if (!department) return; // no upcoming appointment → nothing to poll
+        fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin' })
+            .then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(updateQueueDomPatient)
+            .catch(() => { /* e.g. session expired mid-poll — just skip this tick */ });
+    }
+
+    // Admin / doctor queue controller: one panel PER DEPARTMENT (a doctor
+    // only ever has their own single department's panel on the page — see
+    // admin.php — an admin has one per active department). Each panel is
+    // scoped with querySelector on itself so multiple departments' numbers
+    // never collide, and each is polled independently with its own
+    // ?department= so the server returns that department's real counts.
+    function updateDeptPanel(panel, data) {
+        const servingEl = panel.querySelector('.dept-serving-ticket');
+        const nextEl = panel.querySelector('.dept-next-ticket');
+        const waitingEl = panel.querySelector('.dept-waiting-count');
+        const progressEl = panel.querySelector('.dept-progress-bar');
+        const callNextBtn = panel.querySelector('.dept-call-next-btn');
+
+        if (servingEl) servingEl.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
+        if (nextEl) nextEl.textContent = data.nextTicket;
+        if (waitingEl) waitingEl.textContent = data.waiting;
+        if (progressEl) progressEl.style.width = `${data.progressPct}%`;
+        // Keep in sync with the server-side guard: nothing to call
+        // next once no one is actually waiting in that department.
+        if (callNextBtn) callNextBtn.disabled = data.waiting === 0;
+
+        const prevServing = parseInt(panel.dataset.lastServing || '-1', 10);
+        if (prevServing >= 0 && data.currentlyServing > prevServing) {
+            showToast(`${panel.dataset.department}: Now Serving Ticket #${data.currentlyServing}`, '🎫');
+        }
+        panel.dataset.lastServing = data.currentlyServing;
+    }
+
+    function pollDeptPanels() {
+        document.querySelectorAll('.dept-queue-panel').forEach(panel => {
+            const department = panel.dataset.department;
+            if (!department) return;
+            fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin' })
+                .then(res => res.ok ? res.json() : Promise.reject(res.status))
+                .then(data => updateDeptPanel(panel, data))
+                .catch(() => { /* skip this tick */ });
         });
     }
 
-    const simNextQueueBtn = document.getElementById('simNextQueueBtn');
-    if (simNextQueueBtn) {
-        simNextQueueBtn.addEventListener('click', advanceQueue);
+    function pollQueueStatus() {
+        if (document.getElementById('queue-section')) pollPatientQueue();
+        if (document.querySelector('.dept-queue-panel')) pollDeptPanels();
     }
 
-    // Auto queue simulator tick every 45 seconds to create live feeling
-    setInterval(() => {
-        if (appState.queue.currentlyServing < appState.queue.myTicket) {
-            appState.queue.currentlyServing += 1;
-            saveState();
-            renderDashboard();
-        }
-    }, 45000);
+    if (document.getElementById('queue-section') || document.querySelector('.dept-queue-panel')) {
+        pollQueueStatus();
+        setInterval(pollQueueStatus, 5000);
+    }
 
     // ----------------------------------------------------------------------
     // 5. Appointment Booking Form Handling
@@ -282,6 +341,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showToast('Appointment successfully scheduled!', '✅');
         });
+    }
+
+    // ----------------------------------------------------------------------
+    // 5b. Doctor Time-Slot Availability (real, server-backed check)
+    // ----------------------------------------------------------------------
+    // Whenever the physician or date changes on the real booking form,
+    // ask get_slots.php which of that doctor's slots are already taken
+    // that day and disable them in the dropdown — so a patient can't even
+    // select a slot someone else already holds. The server still re-checks
+    // this at submit time (see index.php), since a disabled <option> can
+    // always be bypassed client-side.
+    const doctorSelectPHP = document.getElementById('doctorSelectPHP');
+    const apptDateSelectPHP = document.getElementById('apptDateSelectPHP');
+    const apptTimeSelectPHP = document.getElementById('apptTimeSelectPHP');
+    const slotAvailabilityNote = document.getElementById('slotAvailabilityNote');
+
+    function refreshSlotAvailability() {
+        if (!doctorSelectPHP || !apptDateSelectPHP || !apptTimeSelectPHP) return;
+        const doctorId = doctorSelectPHP.value;
+        const apptDate = apptDateSelectPHP.value;
+
+        // Reset to "all enabled" whenever the inputs aren't complete yet.
+        if (!doctorId || !apptDate) {
+            [...apptTimeSelectPHP.options].forEach(opt => { opt.disabled = false; });
+            if (slotAvailabilityNote) slotAvailabilityNote.textContent = 'Choose a physician and date to see open slots.';
+            return;
+        }
+
+        if (slotAvailabilityNote) slotAvailabilityNote.textContent = 'Checking availability…';
+
+        fetch(`get_slots.php?doctor_id=${encodeURIComponent(doctorId)}&appt_date=${encodeURIComponent(apptDate)}`, { credentials: 'same-origin' })
+            .then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(data => {
+                if (!data.slots) return;
+                let anyAvailable = false;
+                let selectedNowTaken = false;
+
+                data.slots.forEach(slot => {
+                    const opt = [...apptTimeSelectPHP.options].find(o => o.value === slot.time);
+                    if (!opt) return;
+                    opt.disabled = !slot.available;
+                    opt.textContent = slot.available ? slot.time : `${slot.time} (Booked)`;
+                    if (slot.available) anyAvailable = true;
+                    if (!slot.available && opt.selected) selectedNowTaken = true;
+                });
+
+                // If the currently-selected slot just became unavailable
+                // (e.g. patient switched doctor/date), jump to the first
+                // open one instead of silently submitting a taken slot.
+                if (selectedNowTaken) {
+                    const firstOpen = [...apptTimeSelectPHP.options].find(o => !o.disabled);
+                    if (firstOpen) firstOpen.selected = true;
+                }
+
+                if (slotAvailabilityNote) {
+                    slotAvailabilityNote.textContent = anyAvailable
+                        ? 'Booked slots are disabled below.'
+                        : 'This physician is fully booked that day — try another date.';
+                }
+            })
+            .catch(() => {
+                if (slotAvailabilityNote) slotAvailabilityNote.textContent = 'Could not check availability — slots shown may not be accurate.';
+            });
+    }
+
+    if (doctorSelectPHP && apptDateSelectPHP) {
+        doctorSelectPHP.addEventListener('change', refreshSlotAvailability);
+        apptDateSelectPHP.addEventListener('change', refreshSlotAvailability);
     }
 
     // Cancel Appointment button
@@ -507,79 +634,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            showToast('Logging out... Redirecting to portal home', '🚪');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1000);
-        });
-    }
+    // Note: logout is a real link (logout.php) on every PHP page now, so it
+    // needs no JS handler — the server destroys the session directly.
 
     // ----------------------------------------------------------------------
-    // 9. Admin Portal Logic & Live Queue Calling
+    // 9. Admin Portal Logic
     // ----------------------------------------------------------------------
-    function renderAdminDashboard() {
-        const adminTicketDisplay = document.getElementById('adminTicketDisplay');
-        const adminServingTicket = document.getElementById('adminServingTicket');
-        const adminNextTicket = document.getElementById('adminNextTicket');
-        const adminWaitingCount = document.getElementById('adminWaitingCount');
-        const adminQueueProgressBar = document.getElementById('adminQueueProgressBar');
+    // Note: "Call Next Ticket" and "Reset Queue" are real <form>
+    // submissions straight to admin.php (see section 4 above for the
+    // live polling that reflects the result on every open tab/page).
 
-        if (adminTicketDisplay) adminTicketDisplay.textContent = appState.queue.currentlyServing;
-        if (adminServingTicket) adminServingTicket.textContent = `#${appState.queue.currentlyServing}`;
-        if (adminNextTicket) adminNextTicket.textContent = `#${appState.queue.currentlyServing + 1}`;
-
-        const waiting = Math.max(0, appState.queue.myTicket - appState.queue.currentlyServing);
-        if (adminWaitingCount) adminWaitingCount.textContent = `${waiting} Patients`;
-
-        if (adminQueueProgressBar) {
-            const pct = Math.min(100, Math.round((appState.queue.currentlyServing / appState.queue.myTicket) * 100));
-            adminQueueProgressBar.style.width = `${pct}%`;
-        }
-    }
-
-    renderAdminDashboard();
-
-    const adminCallNextBtn = document.getElementById('adminCallNextBtn');
-    if (adminCallNextBtn) {
-        adminCallNextBtn.addEventListener('click', () => {
-            appState.queue.currentlyServing += 1;
-            saveState();
-            renderDashboard();
-            renderAdminDashboard();
-            showToast(`Called Ticket #${appState.queue.currentlyServing} to Room 304!`, '🔊');
-        });
-    }
-
-    const adminResetQueueBtn = document.getElementById('adminResetQueueBtn');
-    if (adminResetQueueBtn) {
-        adminResetQueueBtn.addEventListener('click', () => {
-            if (confirm('Reset live queue serving counter to #1?')) {
-                appState.queue.currentlyServing = 1;
-                saveState();
-                renderDashboard();
-                renderAdminDashboard();
-                showToast('Queue ticket counter reset to #1', '🔄');
-            }
-        });
-    }
-
-    // Admin Record Search Filter
+    // Admin Record Search + Status Filter
     const adminRecordSearch = document.getElementById('adminRecordSearch');
-    if (adminRecordSearch) {
-        adminRecordSearch.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#adminRecordsTableBody tr');
+    const adminStatusFilter = document.getElementById('adminStatusFilter');
+    function applyAdminRecordFilters() {
+        const query = (adminRecordSearch?.value || '').toLowerCase();
+        const status = adminStatusFilter?.value || '';
+        const rows = document.querySelectorAll('#adminRecordsTableBody tr');
 
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(query) ? '' : 'none';
-            });
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const matchesText = text.includes(query);
+            const matchesStatus = !status || row.dataset.status === status;
+            row.style.display = (matchesText && matchesStatus) ? '' : 'none';
         });
     }
+    if (adminRecordSearch) adminRecordSearch.addEventListener('input', applyAdminRecordFilters);
+    if (adminStatusFilter) adminStatusFilter.addEventListener('change', applyAdminRecordFilters);
+
+    // View Medical Record modal
+    document.querySelectorAll('.view-record-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('viewRecPatient').textContent = btn.dataset.patient || '—';
+            document.getElementById('viewRecDoctor').textContent = btn.dataset.doctor || '—';
+            document.getElementById('viewRecDate').textContent = btn.dataset.date || '—';
+            document.getElementById('viewRecStatus').textContent = btn.dataset.status || '—';
+            document.getElementById('viewRecTitle').textContent = btn.dataset.title || '';
+            document.getElementById('viewRecNotes').textContent = btn.dataset.notes || 'No notes recorded.';
+            const modalEl = document.getElementById('viewRecordModal');
+            if (modalEl) new bootstrap.Modal(modalEl).show();
+        });
+    });
+
+    // Edit Medical Record modal
+    document.querySelectorAll('.edit-record-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('editRecId').value = btn.dataset.id || '';
+            document.getElementById('editRecPatient').value = btn.dataset.patientId || '';
+            document.getElementById('editRecDoctor').value = btn.dataset.doctorId || '';
+            document.getElementById('editRecTitle').value = btn.dataset.title || '';
+            document.getElementById('editRecNotes').value = btn.dataset.notes || '';
+            document.getElementById('editRecDate').value = btn.dataset.date || '';
+            const modalEl = document.getElementById('editRecordModal');
+            if (modalEl) new bootstrap.Modal(modalEl).show();
+        });
+    });
 
     // Mark Appointment Completed
     document.querySelectorAll('.mark-complete-btn').forEach(btn => {
@@ -655,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------------------------
     // 10. Toast Notification Generator Utility
     // ----------------------------------------------------------------------
-    function showToast(message, icon = 'ℹ️') {
+    function showToast(message, icon = 'ℹ️', durationMs = 3500) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
 
@@ -672,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.opacity = '0';
             toast.style.transition = 'opacity 0.3s ease';
             setTimeout(() => toast.remove(), 300);
-        }, 3500);
+        }, durationMs);
     }
 });
 
