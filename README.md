@@ -103,7 +103,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 | Symptom | Fix |
 |---|---|
-| **"Database connection failed"** | Check `db.php` credentials, confirm MySQL is running, and import `schema.sql`. If the error says **"could not find driver"** or that `pdo_mysql` is not enabled, enable the PHP PDO MySQL extension for the PHP version serving the site (ask your hosting provider if needed), then restart PHP/web server. |
+| **"Database connection failed"** | Check `db.php` credentials, confirm MySQL is running, and import `schema.sql`. On Railway's PHP/Nixpacks build, `composer.json` declares the required `pdo_mysql` extension; redeploy the latest commit. If you use a custom Dockerfile or another PHP host and see **"could not find driver"**, enable the PDO MySQL extension in that runtime. |
 | **Blank white page** | Check XAMPP's PHP error log, or temporarily add `ini_set('display_errors', 1); error_reporting(E_ALL);` to the top of the failing file. |
 | **"No patient profile found"** | You're logged in as a `patient`-role user with no row in the `patients` table — shouldn't happen via `register.php`. |
 
