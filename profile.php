@@ -5,6 +5,15 @@ require_role(['patient']);
 
 $userId = $_SESSION['user_id'];
 
+$stmt = $pdo->prepare('SELECT u.full_name, u.email, u.phone, p.* FROM patients p JOIN users u ON u.id = p.user_id WHERE p.user_id = ?');
+$stmt->execute([$userId]);
+$patient = $stmt->fetch();
+
+if (!$patient) {
+    die('No patient profile found for this account.');
+}
+$patientId = $patient['id'];
+
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
     verify_csrf();
@@ -14,6 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $address    = trim($_POST['address'] ?? '');
     $emName     = trim($_POST['emergency_name'] ?? '');
     $emPhone    = trim($_POST['emergency_phone'] ?? '');
+    $insuranceProviderInput = $_POST['insurance_provider'] ?? '';
+    $insurancePolicyNoInput = $_POST['insurance_policy_no'] ?? '';
+    $allergyNames = $_POST['allergy_names'] ?? [];
+    $allergySeverities = $_POST['allergy_severities'] ?? [];
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         flash('Please enter a valid email address.', '⚠️');
@@ -29,30 +42,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         exit;
     }
 
+    if (
+        !is_string($insuranceProviderInput) ||
+        !is_string($insurancePolicyNoInput) ||
+        !is_array($allergyNames) ||
+        !is_array($allergySeverities) ||
+        count($allergyNames) !== count($allergySeverities)
+    ) {
+        flash('Please check your insurance and allergy information.', '⚠️');
+        header('Location: profile.php');
+        exit;
+    }
+
+    $insuranceProvider = trim($insuranceProviderInput);
+    $insurancePolicyNo = trim($insurancePolicyNoInput);
+
+    if (
+        strlen($insuranceProvider) > 600 ||
+        strlen($insurancePolicyNo) > 240
+    ) {
+        flash('Please check your insurance and allergy information.', '⚠️');
+        header('Location: profile.php');
+        exit;
+    }
+
+    $allergiesToSave = [];
+    foreach ($allergyNames as $index => $allergyName) {
+        if (!is_string($allergyName) || !is_string($allergySeverities[$index] ?? null)) {
+            flash('Please check your allergy information.', '⚠️');
+            header('Location: profile.php');
+            exit;
+        }
+
+        $allergyName = trim($allergyName);
+        if ($allergyName === '') {
+            continue;
+        }
+
+        $severity = $allergySeverities[$index];
+        if (strlen($allergyName) > 480 || !in_array($severity, ['Mild', 'Moderate', 'Severe'], true)) {
+            flash('Please check your allergy information.', '⚠️');
+            header('Location: profile.php');
+            exit;
+        }
+
+        $allergiesToSave[] = [$allergyName, $severity];
+    }
+
     try {
+        $pdo->beginTransaction();
         $pdo->prepare('UPDATE users SET full_name = ?, email = ?, phone = ? WHERE id = ?')
             ->execute([$name, $email, $phone, $userId]);
-        $pdo->prepare('UPDATE patients SET address = ?, emergency_name = ?, emergency_phone = ? WHERE user_id = ?')
-            ->execute([$address, $emName, $emPhone, $userId]);
+        $pdo->prepare('UPDATE patients SET address = ?, emergency_name = ?, emergency_phone = ?, insurance_provider = ?, insurance_policy_no = ? WHERE user_id = ?')
+            ->execute([$address, $emName, $emPhone, $insuranceProvider, $insurancePolicyNo, $userId]);
+
+        $pdo->prepare('DELETE FROM allergies WHERE patient_id = ?')->execute([$patientId]);
+        $insertAllergy = $pdo->prepare('INSERT INTO allergies (patient_id, name, severity) VALUES (?, ?, ?)');
+        foreach ($allergiesToSave as [$allergyName, $severity]) {
+            $insertAllergy->execute([$patientId, $allergyName, $severity]);
+        }
+        $pdo->commit();
 
         $_SESSION['full_name'] = $name;
         flash('Profile information updated', '👤');
     } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         flash('Could not update your profile. Please try again.', '⚠️');
     }
     header('Location: profile.php');
     exit;
 }
-
-// Fetch patient + user info
-$stmt = $pdo->prepare('SELECT u.full_name, u.email, u.phone, p.* FROM patients p JOIN users u ON u.id = p.user_id WHERE p.user_id = ?');
-$stmt->execute([$userId]);
-$patient = $stmt->fetch();
-
-if (!$patient) {
-    die('No patient profile found for this account.');
-}
-$patientId = $patient['id'];
 
 // Primary physician
 $doctorName = 'Not assigned';
@@ -130,7 +191,7 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
                 <h2 class="manrope-800 mb-1">Patient Profile</h2>
-                <p class="text-muted mb-0">Manage your personal demographics, health vitals, and emergency contacts.</p>
+                <p class="text-muted mb-0">Manage your personal details, insurance, allergies, and emergency contacts.</p>
             </div>
             <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#editProfileModal">✏️ Edit Profile</button>
         </div>
@@ -243,10 +304,10 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
 
     <!-- MODAL: Edit Profile -->
     <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content modal-content-custom">
                 <div class="modal-header modal-header-custom">
-                    <h5 class="modal-title manrope-700">Edit Personal Details</h5>
+                    <h5 class="modal-title manrope-700">Edit Profile & Medical Information</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" action="profile.php">
@@ -280,6 +341,82 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
                                 </div>
                             </div>
                         </div>
+                        <hr>
+                        <h6 class="manrope-700 text-primary mb-3">Medical Insurance</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Insurance Provider</label>
+                                <input type="text" name="insurance_provider" maxlength="150" class="form-control form-control-custom" value="<?= htmlspecialchars($patient['insurance_provider'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Policy Number</label>
+                                <input type="text" name="insurance_policy_no" maxlength="60" class="form-control form-control-custom" value="<?= htmlspecialchars($patient['insurance_policy_no'] ?? '') ?>">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h6 class="manrope-700 text-primary mb-0">Known Allergies</h6>
+                            <button type="button" class="btn btn-outline-custom btn-sm" id="addAllergyButton">Add Allergy</button>
+                        </div>
+                        <div id="allergyList">
+                            <?php foreach ($allergies as $allergy): ?>
+                                <div class="row g-2 align-items-end mb-2 allergy-entry">
+                                    <div class="col-md-6">
+                                        <label class="form-label manrope-600">Allergy</label>
+                                        <input type="text" name="allergy_names[]" maxlength="120" class="form-control form-control-custom" value="<?= htmlspecialchars($allergy['name']) ?>">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label manrope-600">Severity</label>
+                                        <select name="allergy_severities[]" class="form-select form-control-custom">
+                                            <?php foreach (['Mild', 'Moderate', 'Severe'] as $severity): ?>
+                                                <option value="<?= $severity ?>" <?= $allergy['severity'] === $severity ? 'selected' : '' ?>><?= $severity ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger w-100 remove-allergy-button">Remove</button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (!$allergies): ?>
+                                <div class="row g-2 align-items-end mb-2 allergy-entry">
+                                    <div class="col-md-6">
+                                        <label class="form-label manrope-600">Allergy</label>
+                                        <input type="text" name="allergy_names[]" maxlength="120" class="form-control form-control-custom">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label manrope-600">Severity</label>
+                                        <select name="allergy_severities[]" class="form-select form-control-custom">
+                                            <option value="Mild">Mild</option>
+                                            <option value="Moderate">Moderate</option>
+                                            <option value="Severe">Severe</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger w-100 remove-allergy-button">Remove</button>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <template id="allergyEntryTemplate">
+                            <div class="row g-2 align-items-end mb-2 allergy-entry">
+                                <div class="col-md-6">
+                                    <label class="form-label manrope-600">Allergy</label>
+                                    <input type="text" name="allergy_names[]" maxlength="120" class="form-control form-control-custom">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label manrope-600">Severity</label>
+                                    <select name="allergy_severities[]" class="form-select form-control-custom">
+                                        <option value="Mild">Mild</option>
+                                        <option value="Moderate">Moderate</option>
+                                        <option value="Severe">Severe</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-danger w-100 remove-allergy-button">Remove</button>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                     <div class="modal-footer modal-footer-custom">
                         <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancel</button>
@@ -300,6 +437,20 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
+    <script>
+        const allergyList = document.getElementById('allergyList');
+        const allergyEntryTemplate = document.getElementById('allergyEntryTemplate');
+
+        document.getElementById('addAllergyButton').addEventListener('click', () => {
+            allergyList.appendChild(allergyEntryTemplate.content.cloneNode(true));
+        });
+
+        allergyList.addEventListener('click', (event) => {
+            if (event.target.closest('.remove-allergy-button')) {
+                event.target.closest('.allergy-entry').remove();
+            }
+        });
+    </script>
     <?php render_flash_script(); ?>
 </body>
 
