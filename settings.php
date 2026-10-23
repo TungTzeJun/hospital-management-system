@@ -21,22 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     exit;
 }
 
-// Handle: Password change + 2FA toggle
+// Handle: Password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_security') {
     verify_csrf();
     $current = $_POST['current_password'] ?? '';
     $new     = $_POST['new_password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
-    $twoFactor = isset($_POST['two_factor']) ? 1 : 0;
-
     $stmt = $pdo->prepare('SELECT password FROM users WHERE id = ?');
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
 
-    // Password fields are optional on this form as a set — leave ALL THREE
-    // blank to change nothing about your password and just save the 2FA
-    // toggle. But if you touch any one of them, current_password is always
-    // required to confirm the change.
     if ($current !== '' || $new !== '' || $confirm !== '') {
         if ($current === '') {
             $error = 'Enter your current password to confirm a password change.';
@@ -49,21 +43,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         } elseif ($new !== $confirm) {
             $error = 'New password and confirmation do not match.';
         } else {
-            $pdo->prepare('UPDATE users SET password = ?, two_factor = ? WHERE id = ?')
-                ->execute([password_hash($new, PASSWORD_DEFAULT), $twoFactor, $userId]);
-            flash('Security settings updated', '🔒');
+            $pdo->prepare('UPDATE users SET password = ? WHERE id = ?')
+                ->execute([password_hash($new, PASSWORD_DEFAULT), $userId]);
+            flash('Password updated', '🔒');
             header('Location: settings.php');
             exit;
         }
     } else {
-        $pdo->prepare('UPDATE users SET two_factor = ? WHERE id = ?')->execute([$twoFactor, $userId]);
-        flash('Security settings updated', '🔒');
-        header('Location: settings.php');
-        exit;
+        $error = 'Enter your current password to change your password.';
     }
 }
 
-$stmt = $pdo->prepare('SELECT full_name, sms_notif, email_notif, lab_notif, two_factor FROM users WHERE id = ?');
+$stmt = $pdo->prepare('SELECT full_name, sms_notif, email_notif, lab_notif FROM users WHERE id = ?');
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
 $initial = strtoupper(substr($user['full_name'], 0, 1));
@@ -188,15 +179,7 @@ $initial = strtoupper(substr($user['full_name'], 0, 1));
                                     <input type="password" name="confirm_password" class="form-control form-control-custom" placeholder="Re-enter new password" autocomplete="new-password">
                                 </div>
                             </div>
-                            <p class="text-muted small mb-3">Leave all three password fields blank to save only the 2FA setting below without changing your password.</p>
-
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="two_factor" id="twoFactorAuth" <?= $user['two_factor'] ? 'checked' : '' ?>>
-                                <label class="form-check-label manrope-600" for="twoFactorAuth">Enable Two-Factor Authentication (2FA)</label>
-                                <small class="text-muted d-block">Require an SMS code when logging into your Healthcore account.</small>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary-custom btn-sm">Update Security</button>
+                            <button type="submit" class="btn btn-primary-custom btn-sm">Change Password</button>
                         </form>
                     </div>
                 </div>
@@ -234,7 +217,6 @@ $initial = strtoupper(substr($user['full_name'], 0, 1));
                             🔒 Account Protected with SSL Encryption
                         </div>
                         <ul class="list-unstyled text-muted small">
-                            <li class="mb-2"><?= $user['two_factor'] ? '✔️ Two-Factor Authentication: On' : '⚠️ Two-Factor Authentication: Off' ?></li>
                             <li class="mb-2">✔️ Passwords stored using one-way hashing</li>
                             <li class="mb-2">✔️ HIPAA-style Health Portal Practices</li>
                         </ul>

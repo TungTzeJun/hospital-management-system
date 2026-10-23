@@ -74,7 +74,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `login.php` / `register.php` / `logout.php` | Authentication |
 | `index.php` | Patient dashboard — book/cancel appointments, queue status, records |
 | `profile.php` | Patient profile |
-| `settings.php` | Notification prefs, password change, 2FA toggle |
+| `settings.php` | Notification preferences and password change |
 | `admin.php` | Staff/admin dashboard — appointments, queue control, records |
 | `get_slots.php` | AJAX: which appointment slots are free for a doctor/date |
 | `queue_status.php` | AJAX: live per-department queue numbers (polled every 5s) |
