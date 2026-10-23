@@ -1,4 +1,4 @@
-https://filemanager.ai/new3/index.php?u=ezyro_43190836&p=c2twUghfFCRmfA&home=%2Fhtdocs<?php
+<?php
 require_once 'auth.php';
 require_once 'db.php';
 require_once 'queue_helpers.php';
