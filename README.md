@@ -1,10 +1,10 @@
-# Healthcore — Hospital Management Portal
+# 🏥 Healthcore — Hospital Management Portal
 
 A PHP + MySQL patient/staff portal with real-time appointment booking, per-department queue tracking, and role-based dashboards. No framework, no Composer, no build step — runs on plain Apache/PHP/MySQL (XAMPP-friendly).(HTML INCLUDED IN PHP FILE)
 
 ---
 
-## Quick Start (5 minutes)
+## 🚀 Quick Start (5 minutes)
 
 | Step | What to do |
 |---|---|
@@ -17,7 +17,7 @@ A PHP + MySQL patient/staff portal with real-time appointment booking, per-depar
 
 ### Updating an existing database
 
-Back up the database first, then run this once in phpMyAdmin's SQL tab. It adds the called state, renumbers existing appointments from #0 within each department/day, and resets the serving counter so the queue can start cleanly:
+Back up the database first, then run this in your database's SQL console. It adds the called state, renumbers existing appointments from #1 within each department/day, and updates the serving counter to match any ticket already called today:
 
 ```sql
 ALTER TABLE appointments
@@ -25,7 +25,7 @@ ALTER TABLE appointments
 
 CREATE TEMPORARY TABLE queue_ticket_numbers AS
 SELECT a.id,
-			 ROW_NUMBER() OVER (PARTITION BY d.department, a.appt_date ORDER BY a.ticket_number, a.appt_time, a.id) - 1 AS ticket_number
+			 ROW_NUMBER() OVER (PARTITION BY d.department, a.appt_date ORDER BY a.ticket_number, a.appt_time, a.id) AS ticket_number
 FROM appointments a
 JOIN doctors d ON d.id = a.doctor_id;
 
@@ -37,10 +37,19 @@ DROP TEMPORARY TABLE queue_ticket_numbers;
 
 ALTER TABLE queue_state
 	MODIFY currently_serving INT NOT NULL DEFAULT -1;
-UPDATE queue_state SET currently_serving = -1;
+
+UPDATE queue_state qs
+LEFT JOIN (
+	SELECT d.department, MAX(a.ticket_number) AS ticket_number
+	FROM appointments a
+	JOIN doctors d ON d.id = a.doctor_id
+	WHERE a.appt_date = CURDATE() AND a.status = 'Called'
+	GROUP BY d.department
+) called ON called.department = qs.department
+SET qs.currently_serving = COALESCE(called.ticket_number, -1);
 ```
 
-After this migration, each doctor's/admin's **Call Next** action marks only the next waiting appointment as `Called`; that patient sees the call on their dashboard and is removed from the waiting count.
+After this migration, tickets are numbered from #1 for each department and day. Each doctor's/admin's **Call Next** action marks only the next waiting appointment as `Called`; that patient sees the call on their dashboard and is removed from the waiting count.
 
 ### Demo accounts (password: `password123` for all demo accounts)
 
@@ -52,7 +61,7 @@ After this migration, each doctor's/admin's **Call Next** action marks only the 
 
 New patients can also self-register at `register.php`. Self-registering as a doctor requires the staff invite code set in `db.php` (`DOCTOR_INVITE_CODE`).
 
-### Suggested walkthrough (~2 min)
+### 🎬 Suggested walkthrough (~2 min)
 
 1. Log in as **patient** → book an appointment → watch the live "waiting" queue widget.
 2. Log out, log in as **admin** → call the next ticket for that department, mark the appointment complete.
@@ -64,7 +73,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 ---
 
-## Project structure
+## 📁 Project structure
 
 | File | Purpose |
 |---|---|
@@ -94,12 +103,12 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 - Passwords use PHP's `password_hash()` / `password_verify()` — never stored in plain text.
 - Every data-changing form (login, register, book/cancel, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
 - The session cookie is `HttpOnly` + `SameSite=Lax`. Once served over HTTPS, uncomment `'secure' => true` in `auth.php`'s `session_set_cookie_params()`.
-- Ticket numbers start at #0 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
+- Ticket numbers start at #1 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
 
 ---
 
 
-## Troubleshooting
+## 🆘 Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -109,4 +118,4 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 ---
 
-i love fish sticks :)
+© 2026 Healthcore Hospital Management System

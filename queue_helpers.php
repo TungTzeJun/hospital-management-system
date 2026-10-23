@@ -86,10 +86,10 @@ function department_max_ticket(PDO $pdo, string $department): int {
 // Next ticket number to hand out for a department on a given date.
 // Tickets are scoped per department (not just per day) now that each
 // department runs its own queue, so Cardiology and Neurology both get
-// to start at #0 on the same day instead of competing for one counter.
+// to start at #1 on the same day instead of competing for one counter.
 function next_ticket_number(PDO $pdo, string $department, string $date): int {
     $stmt = $pdo->prepare(
-        "SELECT COALESCE(MAX(a.ticket_number), -1) + 1 AS t FROM appointments a
+        "SELECT COALESCE(MAX(a.ticket_number), 0) + 1 AS t FROM appointments a
          JOIN doctors d ON d.id = a.doctor_id
          WHERE d.department = ? AND a.appt_date = ?"
     );
@@ -113,7 +113,7 @@ function department_next_ticket(PDO $pdo, string $department): int {
     }
 
     $queue = get_or_create_queue($pdo, $department);
-    return (int) $queue['currently_serving'] + 1;
+    return max(1, (int) $queue['currently_serving'] + 1);
 }
 
 // Short, URL/DOM-id-safe slug for a department name (e.g. "General

@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )->execute([$targetDepartment]);
             $pdo->prepare('UPDATE queue_state SET currently_serving = -1 WHERE department = ?')->execute([$targetDepartment]);
             $pdo->commit();
-            flash($targetDepartment . ' queue ticket counter reset to #0', '🔄');
+            flash($targetDepartment . ' queue ticket counter reset to #1', '🔄');
         }
     }
 
@@ -449,7 +449,7 @@ function statusBadge(string $status): string {
                                     <input type="hidden" name="department" value="<?= htmlspecialchars($dq['department']) ?>">
                                     <button type="submit" class="btn btn-success w-100 py-3 manrope-700 shadow-sm dept-call-next-btn" <?= $dq['waiting'] === 0 ? 'disabled' : '' ?>>🔊 CALL NEXT TICKET</button>
                                 </form>
-                                <form method="POST" action="admin.php" onsubmit="return confirm('Reset <?= htmlspecialchars($dq['department']) ?> queue serving counter to #0?');">
+                                <form method="POST" action="admin.php" onsubmit="return confirm('Reset <?= htmlspecialchars($dq['department']) ?> queue serving counter to #1?');">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="reset_queue">
                                     <input type="hidden" name="department" value="<?= htmlspecialchars($dq['department']) ?>">
