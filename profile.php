@@ -310,7 +310,7 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
                     <h5 class="modal-title manrope-700">Edit Profile & Medical Information</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="profile.php">
+                <form method="POST" action="profile.php" class="profile-edit-form">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="update_profile">
                     <div class="modal-body p-4">

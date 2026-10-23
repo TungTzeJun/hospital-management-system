@@ -433,6 +433,18 @@ body {
     color: var(--text-primary);
 }
 
+.profile-edit-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.profile-edit-form .modal-body {
+    min-height: 0;
+    overflow-y: auto;
+}
+
 .modal-header-custom {
     border-bottom: 1px solid var(--border-color);
     padding: 1.25rem 1.5rem;
