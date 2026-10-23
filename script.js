@@ -615,15 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Quick Refill Rx & Export Buttons
-    const refillRxBtn = document.getElementById('refillRxBtn');
-    if (refillRxBtn) {
-        refillRxBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            showToast('Refill request sent to Pharmacy Department', '💊');
-        });
-    }
-
+    // Quick Export Button
     const downloadAllRecordsBtn = document.getElementById('downloadAllRecordsBtn');
     if (downloadAllRecordsBtn) {
         downloadAllRecordsBtn.addEventListener('click', () => {
@@ -784,4 +776,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }, durationMs);
     }
 });
-

@@ -1,4 +1,4 @@
-<?php
+https://filemanager.ai/new3/index.php?u=ezyro_43190836&p=c2twUghfFCRmfA&home=%2Fhtdocs<?php
 require_once 'auth.php';
 require_once 'db.php';
 require_once 'queue_helpers.php';
@@ -219,11 +219,6 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                 <span class="action-icon">📄</span>
                 <strong class="d-block manrope-700">Lab Results</strong>
                 <small class="text-muted">View recent reports</small>
-            </a>
-            <a href="#" class="action-tile" id="refillRxBtn">
-                <span class="action-icon">💊</span>
-                <strong class="d-block manrope-700">Refill Rx</strong>
-                <small class="text-muted">Request medication</small>
             </a>
         </div>
 
