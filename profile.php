@@ -23,6 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $address    = trim($_POST['address'] ?? '');
     $emName     = trim($_POST['emergency_name'] ?? '');
     $emPhone    = trim($_POST['emergency_phone'] ?? '');
+    $dobInput = $_POST['dob'] ?? '';
+    $genderInput = $_POST['gender'] ?? '';
+    $bloodTypeInput = $_POST['blood_type'] ?? '';
+    $heightInput = $_POST['height_cm'] ?? '';
+    $weightInput = $_POST['weight_kg'] ?? '';
     $insuranceProviderInput = $_POST['insurance_provider'] ?? '';
     $insurancePolicyNoInput = $_POST['insurance_policy_no'] ?? '';
     $allergyNames = $_POST['allergy_names'] ?? [];
@@ -66,6 +71,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         exit;
     }
 
+    if (
+        !is_string($dobInput) ||
+        !is_string($genderInput) ||
+        !is_string($bloodTypeInput) ||
+        !is_string($heightInput) ||
+        !is_string($weightInput)
+    ) {
+        flash('Please check your demographic and health information.', '⚠️');
+        header('Location: profile.php');
+        exit;
+    }
+
+    $dob = null;
+    if ($dobInput !== '') {
+        $dobDate = DateTimeImmutable::createFromFormat('!Y-m-d', $dobInput);
+        $dobErrors = DateTimeImmutable::getLastErrors();
+        if (
+            !$dobDate ||
+            ($dobErrors !== false && ($dobErrors['warning_count'] > 0 || $dobErrors['error_count'] > 0)) ||
+            $dobDate->format('Y-m-d') !== $dobInput ||
+            $dobDate > new DateTimeImmutable('today')
+        ) {
+            flash('Please enter a valid date of birth that is not in the future.', '⚠️');
+            header('Location: profile.php');
+            exit;
+        }
+        $dob = $dobDate->format('Y-m-d');
+    }
+
+    $gender = $genderInput;
+    $bloodType = $bloodTypeInput;
+    $heightCm = $heightInput === '' ? null : filter_var($heightInput, FILTER_VALIDATE_INT);
+    $weightKg = $weightInput === '' ? null : filter_var($weightInput, FILTER_VALIDATE_INT);
+    if (
+        !in_array($gender, ['Male', 'Female', 'Other'], true) ||
+        !in_array($bloodType, ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], true) ||
+        ($heightInput !== '' && ($heightCm === false || $heightCm < 30 || $heightCm > 300)) ||
+        ($weightInput !== '' && ($weightKg === false || $weightKg < 1 || $weightKg > 700))
+    ) {
+        flash('Please check your demographic and health information.', '⚠️');
+        header('Location: profile.php');
+        exit;
+    }
+
     $allergiesToSave = [];
     foreach ($allergyNames as $index => $allergyName) {
         if (!is_string($allergyName) || !is_string($allergySeverities[$index] ?? null)) {
@@ -93,8 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         $pdo->beginTransaction();
         $pdo->prepare('UPDATE users SET full_name = ?, email = ?, phone = ? WHERE id = ?')
             ->execute([$name, $email, $phone, $userId]);
-        $pdo->prepare('UPDATE patients SET address = ?, emergency_name = ?, emergency_phone = ?, insurance_provider = ?, insurance_policy_no = ? WHERE user_id = ?')
-            ->execute([$address, $emName, $emPhone, $insuranceProvider, $insurancePolicyNo, $userId]);
+        $pdo->prepare('UPDATE patients SET dob = ?, gender = ?, blood_type = ?, height_cm = ?, weight_kg = ?, address = ?, emergency_name = ?, emergency_phone = ?, insurance_provider = ?, insurance_policy_no = ? WHERE user_id = ?')
+            ->execute([$dob, $gender, $bloodType !== '' ? $bloodType : null, $heightCm, $weightKg, $address, $emName, $emPhone, $insuranceProvider, $insurancePolicyNo, $userId]);
 
         $pdo->prepare('DELETE FROM allergies WHERE patient_id = ?')->execute([$patientId]);
         $insertAllergy = $pdo->prepare('INSERT INTO allergies (patient_id, name, severity) VALUES (?, ?, ?)');
@@ -324,6 +373,39 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
                         <div class="mb-3">
                             <label class="form-label manrope-600">Phone Number</label>
                             <input type="tel" name="phone" class="form-control form-control-custom" value="<?= htmlspecialchars($patient['phone']) ?>" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Date of Birth (used to calculate age)</label>
+                                <input type="date" name="dob" class="form-control form-control-custom" value="<?= htmlspecialchars($patient['dob'] ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Gender</label>
+                                <select name="gender" class="form-select form-control-custom" required>
+                                    <?php foreach (['Male', 'Female', 'Other'] as $genderOption): ?>
+                                        <option value="<?= $genderOption ?>" <?= $patient['gender'] === $genderOption ? 'selected' : '' ?>><?= $genderOption ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label manrope-600">Blood Type</label>
+                                <select name="blood_type" class="form-select form-control-custom">
+                                    <option value="">Not specified</option>
+                                    <?php foreach (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as $bloodTypeOption): ?>
+                                        <option value="<?= $bloodTypeOption ?>" <?= $patient['blood_type'] === $bloodTypeOption ? 'selected' : '' ?>><?= $bloodTypeOption ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label manrope-600">Height (cm)</label>
+                                <input type="number" name="height_cm" min="30" max="300" step="1" class="form-control form-control-custom" value="<?= htmlspecialchars((string) ($patient['height_cm'] ?? '')) ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label manrope-600">Weight (kg)</label>
+                                <input type="number" name="weight_kg" min="1" max="700" step="1" class="form-control form-control-custom" value="<?= htmlspecialchars((string) ($patient['weight_kg'] ?? '')) ?>">
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label manrope-600">Residential Address</label>
