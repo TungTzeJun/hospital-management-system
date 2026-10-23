@@ -305,15 +305,14 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
     <!-- MODAL: Edit Profile -->
     <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-            <div class="modal-content modal-content-custom">
+            <form method="POST" action="profile.php" class="modal-content modal-content-custom">
                 <div class="modal-header modal-header-custom">
                     <h5 class="modal-title manrope-700">Edit Profile & Medical Information</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="profile.php" class="profile-edit-form">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="update_profile">
-                    <div class="modal-body p-4">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="update_profile">
+                <div class="modal-body p-4">
                         <div class="mb-3">
                             <label class="form-label manrope-600">Full Name</label>
                             <input type="text" name="name" class="form-control form-control-custom" value="<?= htmlspecialchars($patient['full_name']) ?>" required>
@@ -417,13 +416,12 @@ $age = $patient['dob'] ? (new DateTime())->diff(new DateTime($patient['dob']))->
                                 </div>
                             </div>
                         </template>
-                    </div>
-                    <div class="modal-footer modal-footer-custom">
-                        <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary-custom">Save Changes</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="modal-footer modal-footer-custom">
+                    <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
