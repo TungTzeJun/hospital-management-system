@@ -84,24 +84,13 @@ if (current_role() === 'patient') {
         }
     }
 
-    // Include earlier Called appointments: they are no longer in the
-    // waiting count, but can still be in service ahead of this patient.
-    $ahead = 0;
-    if ($myTicket !== null && $myStatus !== 'Called') {
-        $stmt = $pdo->prepare(
-            "SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id
-             WHERE d.department = ? AND a.appt_date = CURDATE()
-               AND a.status IN ('Confirmed','Pending','Arrived','Called') AND a.ticket_number < ?"
-        );
-        $stmt->execute([$department, $myTicket]);
-        $ahead = (int) $stmt->fetch()['c'];
-    }
+    $waitEstimate = $myTicket !== null
+        ? department_estimated_wait($pdo, $department, $myTicket, $myStatus)
+        : ['ahead' => 0, 'minutes' => null];
     $response['myTicket']    = $myTicket;
     $response['myTurn']      = $myStatus === 'Called';
-    $response['ahead']       = $ahead;
-    $response['estWaitMins'] = $myTicket !== null
-        ? $ahead * department_wait_minutes_per_patient($department)
-        : null;
+    $response['ahead']       = $waitEstimate['ahead'];
+    $response['estWaitMins'] = $waitEstimate['minutes'];
 }
 
 echo json_encode($response);

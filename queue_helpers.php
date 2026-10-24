@@ -85,6 +85,51 @@ function department_wait_minutes_per_patient(string $department): int {
     return $minutesByDepartment[$department] ?? 20;
 }
 
+function department_estimated_wait(PDO $pdo, string $department, int $ticketNumber, string $status): array {
+    if ($status === 'Called') {
+        return ['ahead' => 0, 'minutes' => 0];
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT
+            SUM(CASE WHEN a.status IN ('Confirmed','Pending','Arrived') THEN 1 ELSE 0 END) AS waiting_ahead,
+            SUM(CASE WHEN a.status = 'Called' THEN 1 ELSE 0 END) AS called_ahead
+         FROM appointments a
+         JOIN doctors d ON d.id = a.doctor_id
+         WHERE d.department = ? AND a.appt_date = CURDATE()
+           AND a.status IN ('Confirmed','Pending','Arrived','Called')
+           AND a.ticket_number < ?"
+    );
+    $stmt->execute([$department, $ticketNumber]);
+    $counts = $stmt->fetch();
+    $waitingAhead = (int) ($counts['waiting_ahead'] ?? 0);
+    $calledAhead = (int) ($counts['called_ahead'] ?? 0);
+    $ahead = $waitingAhead + $calledAhead;
+
+    if ($ahead === 0) {
+        return ['ahead' => 0, 'minutes' => 0];
+    }
+
+    $minutesPerPatient = department_wait_minutes_per_patient($department);
+    $currentlyServing = department_currently_serving($pdo, $department);
+    $servingAhead = $currentlyServing >= 0 && $currentlyServing < $ticketNumber;
+    $otherCalledAhead = max(0, $calledAhead - (int) $servingAhead);
+    $minutes = ($waitingAhead + $otherCalledAhead) * $minutesPerPatient;
+
+    if ($servingAhead) {
+        $stmt = $pdo->prepare(
+            'SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, updated_at, CURRENT_TIMESTAMP)) AS elapsed_seconds
+             FROM queue_state WHERE department = ?'
+        );
+        $stmt->execute([$department]);
+        $elapsedSeconds = (int) $stmt->fetchColumn();
+        $remainingSeconds = max(0, ($minutesPerPatient * 60) - $elapsedSeconds);
+        $minutes += (int) ceil($remainingSeconds / 60);
+    }
+
+    return ['ahead' => $ahead, 'minutes' => $minutes];
+}
+
 // All departments that currently have at least one doctor. This is what
 // drives the admin "one card per department" queue view, and is used to
 // validate that a department name POSTed from a form is a real one

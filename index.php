@@ -115,19 +115,11 @@ $currentlyServing = ($myTicket !== null && $myDeptForQueue)
     : -1;
 // Count every unfinished appointment ahead, including tickets already
 // called to the station, which are still being served and add to wait time.
-$ahead = 0;
-if ($myTicket !== null && $myDeptForQueue && $nextAppt['status'] !== 'Called') {
-    $stmt = $pdo->prepare(
-        "SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id
-         WHERE d.department = ? AND a.appt_date = CURDATE()
-           AND a.status IN ('Confirmed','Pending','Arrived','Called') AND a.ticket_number < ?"
-    );
-    $stmt->execute([$myDeptForQueue, $myTicket]);
-    $ahead = (int) $stmt->fetch()['c'];
-}
-$estWaitMins = $myDeptForQueue
-    ? $ahead * department_wait_minutes_per_patient($myDeptForQueue)
-    : 0;
+$waitEstimate = ($myTicket !== null && $myDeptForQueue)
+    ? department_estimated_wait($pdo, $myDeptForQueue, $myTicket, $nextAppt['status'])
+    : ['ahead' => 0, 'minutes' => 0];
+$ahead = $waitEstimate['ahead'];
+$estWaitMins = $waitEstimate['minutes'];
 
 // Recent medical records for this patient
 $stmt = $pdo->prepare("SELECT mr.*, u.full_name AS doctor_name FROM medical_records mr
