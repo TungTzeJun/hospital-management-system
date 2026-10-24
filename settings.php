@@ -6,21 +6,6 @@ require_role(['patient']);
 $userId = $_SESSION['user_id'];
 $error = null;
 
-// Handle: Notification preferences
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_notifications') {
-    verify_csrf();
-    $sms   = isset($_POST['sms_notif']) ? 1 : 0;
-    $email = isset($_POST['email_notif']) ? 1 : 0;
-    $lab   = isset($_POST['lab_notif']) ? 1 : 0;
-
-    $pdo->prepare('UPDATE users SET sms_notif = ?, email_notif = ?, lab_notif = ? WHERE id = ?')
-        ->execute([$sms, $email, $lab, $userId]);
-
-    flash('Notification preferences saved', '🔔');
-    header('Location: settings.php');
-    exit;
-}
-
 // Handle: Password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_security') {
     verify_csrf();
@@ -54,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     }
 }
 
-$stmt = $pdo->prepare('SELECT full_name, sms_notif, email_notif, lab_notif FROM users WHERE id = ?');
+$stmt = $pdo->prepare('SELECT full_name FROM users WHERE id = ?');
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
 $initial = strtoupper(substr($user['full_name'], 0, 1));
@@ -115,7 +100,7 @@ $initial = strtoupper(substr($user['full_name'], 0, 1));
     <!-- Main Content -->
     <main class="main-wrapper">
         <h2 class="manrope-800 mb-1">Account & System Settings</h2>
-        <p class="text-muted mb-4">Customize your patient experience, communication preferences, and security options.</p>
+        <p class="text-muted mb-4">Manage your account security and appearance.</p>
 
         <?php if ($error): ?>
             <div class="alert alert-danger py-2 small"><?= htmlspecialchars($error) ?></div>
@@ -123,38 +108,6 @@ $initial = strtoupper(substr($user['full_name'], 0, 1));
 
         <div class="row g-4">
             <div class="col-lg-8">
-
-                <!-- Notification Settings -->
-                <div class="card-custom mb-4">
-                    <div class="card-header-custom">
-                        <span>Notification Preferences</span>
-                    </div>
-                    <div class="card-body-custom">
-                        <form method="POST" action="settings.php">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="update_notifications">
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="sms_notif" id="smsNotif" <?= $user['sms_notif'] ? 'checked' : '' ?>>
-                                <label class="form-check-label manrope-600" for="smsNotif">SMS Queue Position Alerts</label>
-                                <small class="text-muted d-block">Receive instant text updates when your queue ticket is called.</small>
-                            </div>
-                            <hr>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="email_notif" id="emailNotif" <?= $user['email_notif'] ? 'checked' : '' ?>>
-                                <label class="form-check-label manrope-600" for="emailNotif">Email Appointment Reminders</label>
-                                <small class="text-muted d-block">Receive email alerts 24 hours and 2 hours before scheduled appointments.</small>
-                            </div>
-                            <hr>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="lab_notif" id="labNotif" <?= $user['lab_notif'] ? 'checked' : '' ?>>
-                                <label class="form-check-label manrope-600" for="labNotif">Lab Result Alerts</label>
-                                <small class="text-muted d-block">Get notified immediately when new blood work or diagnostic reports are uploaded.</small>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary-custom btn-sm mt-2">Save Preferences</button>
-                        </form>
-                    </div>
-                </div>
 
                 <!-- Password & Security -->
                 <div class="card-custom mb-4">

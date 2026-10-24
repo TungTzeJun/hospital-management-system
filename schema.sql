@@ -192,20 +192,17 @@ CREATE TABLE `users` (
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
   `phone` varchar(30) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `sms_notif` tinyint(1) NOT NULL DEFAULT 1,
-  `email_notif` tinyint(1) NOT NULL DEFAULT 1,
-  `lab_notif` tinyint(1) NOT NULL DEFAULT 1
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `role`, `full_name`, `email`, `password`, `phone`, `created_at`, `sms_notif`, `email_notif`, `lab_notif`) VALUES
-(1, 'admin', 'Staff Admin', 'admin@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0001', '2026-08-05 01:10:51', 1, 1, 1),
-(2, 'doctor', 'Dr. Sarah Lee', 'sarah.lee@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0002', '2026-08-05 01:10:51', 1, 1, 1),
-(3, 'patient', 'John Doe', 'john.doe@example.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 234-5678', '2026-08-05 01:10:51', 1, 1, 1);
+INSERT INTO `users` (`id`, `role`, `full_name`, `email`, `password`, `phone`, `created_at`) VALUES
+(1, 'admin', 'Staff Admin', 'admin@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0001', '2026-08-05 01:10:51'),
+(2, 'doctor', 'Dr. Sarah Lee', 'sarah.lee@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0002', '2026-08-05 01:10:51'),
+(3, 'patient', 'John Doe', 'john.doe@example.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 234-5678', '2026-08-05 01:10:51');
 
 --
 -- Indexes for dumped tables

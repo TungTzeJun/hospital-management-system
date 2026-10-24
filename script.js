@@ -598,14 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------------------------
     // 8. Settings Page Forms & Actions
     // ----------------------------------------------------------------------
-    const notificationsForm = document.getElementById('notificationsForm');
-    if (notificationsForm) {
-        notificationsForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            showToast('Notification preferences saved', '🔔');
-        });
-    }
-
     const passwordChangeForm = document.getElementById('passwordChangeForm');
     if (passwordChangeForm) {
         passwordChangeForm.addEventListener('submit', (e) => {
