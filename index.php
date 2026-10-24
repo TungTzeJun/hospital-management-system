@@ -128,7 +128,9 @@ if ($myTicket !== null && $myDeptForQueue) {
     $stmt->execute([$myDeptForQueue, $myTicket]);
     $ahead = (int) $stmt->fetch()['c'];
 }
-$estWaitMins = (int) ceil($ahead * 1.5);
+$estWaitMins = $myDeptForQueue
+    ? $ahead * department_wait_minutes_per_patient($myDeptForQueue)
+    : 0;
 
 // Recent medical records for this patient
 $stmt = $pdo->prepare("SELECT mr.*, u.full_name AS doctor_name FROM medical_records mr

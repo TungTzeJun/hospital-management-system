@@ -100,7 +100,9 @@ if (current_role() === 'patient') {
     $response['myTicket']    = $myTicket;
     $response['myTurn']      = $myStatus === 'Called';
     $response['ahead']       = $ahead;
-    $response['estWaitMins'] = $myTicket !== null ? (int) ceil($ahead * 1.5) : null;
+    $response['estWaitMins'] = $myTicket !== null
+        ? $ahead * department_wait_minutes_per_patient($department)
+        : null;
 }
 
 echo json_encode($response);

@@ -73,6 +73,18 @@ function department_currently_serving(PDO $pdo, string $department): int {
     return (int) $stmt->fetch()['t'];
 }
 
+// Estimated service time per patient varies by department.
+function department_wait_minutes_per_patient(string $department): int {
+    $minutesByDepartment = [
+        'ENT' => 15,
+        'Cardiology' => 20,
+        'Neurology' => 25,
+        'Radiology' => 30,
+    ];
+
+    return $minutesByDepartment[$department] ?? 20;
+}
+
 // All departments that currently have at least one doctor. This is what
 // drives the admin "one card per department" queue view, and is used to
 // validate that a department name POSTed from a form is a real one
