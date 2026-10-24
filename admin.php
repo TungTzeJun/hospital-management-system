@@ -123,17 +123,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'complete_appointment') {
         $id = (int) ($_POST['appt_id'] ?? 0);
-        $allowed = true;
-        if ($isDoctor) {
-            $chk = $pdo->prepare('SELECT 1 FROM appointments a JOIN doctors d ON d.id = a.doctor_id WHERE a.id = ? AND d.department = ?');
-            $chk->execute([$id, $myDepartment]);
-            $allowed = (bool) $chk->fetch();
-        }
-        if ($allowed) {
-            $pdo->prepare('UPDATE appointments SET status = "Completed" WHERE id = ?')->execute([$id]);
-            flash('Consultation marked as completed', '✅');
-        } else {
+        $appointmentStmt = $pdo->prepare(
+            'SELECT a.status FROM appointments a
+             JOIN doctors d ON d.id = a.doctor_id
+             WHERE a.id = ?' . ($isDoctor ? ' AND d.department = ?' : '')
+        );
+        $appointmentParams = $isDoctor ? [$id, $myDepartment] : [$id];
+        $appointmentStmt->execute($appointmentParams);
+        $appointment = $appointmentStmt->fetch();
+
+        if ($isDoctor && !$appointment) {
             flash('You can only manage appointments within your own department.', '⚠️');
+        } elseif (!$appointment || !in_array($appointment['status'], ['Confirmed', 'Pending', 'Arrived', 'Called'], true)) {
+            flash('Only active appointments can be marked completed.', '⚠️');
+        } else {
+            $upd = $pdo->prepare(
+                "UPDATE appointments SET status = 'Completed'
+                 WHERE id = ? AND status IN ('Confirmed','Pending','Arrived','Called')"
+            );
+            $upd->execute([$id]);
+            $updated = $upd->rowCount() > 0;
+            flash(
+                $updated ? 'Consultation marked as completed' : 'Only active appointments can be marked completed.',
+                $updated ? '✅' : '⚠️'
+            );
         }
     }
 
@@ -563,6 +576,8 @@ function statusBadge(string $status): string {
                                     <td>
                                         <?php if ($a['status'] === 'Completed'): ?>
                                             <button class="btn btn-sm btn-success" disabled>✔️ Done</button>
+                                        <?php elseif ($a['status'] === 'Cancelled'): ?>
+                                            <button class="btn btn-sm btn-outline-secondary" disabled>Cancelled</button>
                                         <?php else: ?>
                                             <form method="POST" action="admin.php">
                                                 <?= csrf_field() ?>
