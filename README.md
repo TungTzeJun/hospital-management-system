@@ -82,6 +82,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `auth.php` | Session/login helpers + CSRF protection (`csrf_field()` / `verify_csrf()`) |
 | `login.php` / `register.php` / `logout.php` | Authentication |
 | `index.php` | Patient dashboard — book/cancel appointments, queue status, records |
+| `export_records.php` | Authenticated patient download of all medical records as a PDF |
 | `profile.php` | Patient profile |
 | `settings.php` | Notification preferences and password change |
 | `admin.php` | Staff/admin dashboard — appointments, queue control, records |
