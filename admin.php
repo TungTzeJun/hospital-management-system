@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("UPDATE appointments SET status = 'Called' WHERE id = ?")->execute([$appointment['id']]);
                 $pdo->prepare('UPDATE queue_state SET currently_serving = ? WHERE department = ?')->execute([$appointment['ticket_number'], $targetDepartment]);
                 $pdo->commit();
-                flash($targetDepartment . ': Called Ticket #' . $appointment['ticket_number'] . ' to the active station!', '🔊');
+                flash($targetDepartment . ': Called Ticket ' . format_department_ticket($targetDepartment, (int) $appointment['ticket_number']) . ' to the active station!', '🔊');
             } else {
                 $pdo->rollBack();
                 flash('No patients waiting in ' . $targetDepartment . ' — nothing to call.', '⚠️');
@@ -249,6 +249,7 @@ foreach ($queueDepartments as $dept) {
     $departmentQueues[] = [
         'department'  => $dept,
         'slug'        => department_slug($dept),
+        'ticketPrefix' => department_ticket_prefix($dept),
         'serving'     => $serving,
         'maxTicket'   => $maxTicket,
         'nextTicket'  => $nextTicket,
@@ -396,7 +397,7 @@ function statusBadge(string $status): string {
                 <div class="kpi-card">
                     <div class="kpi-icon-box bg-success bg-opacity-10 text-success">🎫</div>
                     <?php if ($isDoctor): ?>
-                        <div><small class="text-muted d-block">Currently Serving Ticket</small><h4 class="manrope-800 mb-0 text-success"><?= ($departmentQueues[0]['serving'] ?? -1) >= 0 ? '#' . $departmentQueues[0]['serving'] : '—' ?></h4></div>
+                        <div><small class="text-muted d-block">Currently Serving Ticket</small><h4 class="manrope-800 mb-0 text-success"><?= htmlspecialchars(format_department_ticket($departmentQueues[0]['department'] ?? '', $departmentQueues[0]['serving'] ?? null)) ?></h4></div>
                     <?php else: ?>
                         <div><small class="text-muted d-block">Total Waiting (All Depts)</small><h4 class="manrope-800 mb-0 text-success"><?= (int) $totalWaitingAllDepts ?> Patients</h4></div>
                     <?php endif; ?>
@@ -425,17 +426,18 @@ function statusBadge(string $status): string {
                 <?php foreach ($departmentQueues as $i => $dq): ?>
                     <div class="dept-queue-panel <?= $i > 0 ? 'border-top pt-4 mt-4' : '' ?>"
                          data-department="<?= htmlspecialchars($dq['department']) ?>"
+                         data-ticket-prefix="<?= htmlspecialchars($dq['ticketPrefix']) ?>"
                          data-slug="<?= htmlspecialchars($dq['slug']) ?>">
                         <h6 class="manrope-700 mb-3">🏥 <?= htmlspecialchars($dq['department']) ?> Department</h6>
                         <div class="row align-items-center">
                             <div class="col-lg-4 text-center border-end">
                                 <small class="text-muted d-block">CURRENT TICKET CALLING</small>
-                                <h1 class="display-2 manrope-800 text-primary my-1 dept-serving-ticket"><?= $dq['serving'] >= 0 ? $dq['serving'] : '—' ?></h1>
+                                <h1 class="display-2 manrope-800 text-primary my-1 dept-serving-ticket"><?= htmlspecialchars(format_department_ticket($dq['department'], $dq['serving'])) ?></h1>
                                 <p class="text-muted small mb-0">Target Room: <?= htmlspecialchars($dq['department']) ?></p>
                             </div>
                             <div class="col-lg-5 p-4">
                                 <div class="d-flex justify-content-between mb-2">
-                                    <span>Next Ticket in Line: <strong class="text-primary">#<span class="dept-next-ticket"><?= $dq['nextTicket'] ?></span></strong></span>
+                                    <span>Next Ticket in Line: <strong class="text-primary"><span class="dept-next-ticket"><?= htmlspecialchars(format_department_ticket($dq['department'], $dq['nextTicket'])) ?></span></strong></span>
                                     <span>Total Waiting: <strong class="text-warning"><span class="dept-waiting-count"><?= $dq['waiting'] ?></span> Patients</strong></span>
                                 </div>
                                 <div class="progress mb-3" style="height: 12px;">

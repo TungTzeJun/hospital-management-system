@@ -265,7 +265,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                 <div class="card-body-custom">
                     <div class="queue-box">
                         <p class="text-muted mb-0 small">YOUR QUEUE TICKET</p>
-                        <div class="queue-number-large" id="myQueueNumber"><?= $myTicket !== null ? $myTicket : '—' ?></div>
+                        <div class="queue-number-large" id="myQueueNumber"><?= htmlspecialchars(format_department_ticket($myDeptForQueue ?? '', $myTicket)) ?></div>
                         <?php if ($myTicket === null && $nextAppt): ?>
                             <small class="text-muted" id="queueNoTicketNote">Ticket opens on your appointment day (<?= date('d M Y', strtotime($nextAppt['appt_date'])) ?>)</small>
                         <?php endif; ?>
@@ -273,7 +273,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                     <div class="queue-details">
                         <div>
                             <small class="text-muted d-block">Currently Serving</small>
-                            <strong class="manrope-700 fs-5 text-success" id="currentQueueNumber"><?= $currentlyServing >= 0 ? (int) $currentlyServing : '—' ?></strong>
+                            <strong class="manrope-700 fs-5 text-success" id="currentQueueNumber"><?= htmlspecialchars(format_department_ticket($myDeptForQueue ?? '', $currentlyServing)) ?></strong>
                         </div>
                         <div class="border-start"></div>
                         <div>
@@ -438,13 +438,13 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                 </div>
                 <div class="modal-body p-4 text-center">
                     <span class="badge bg-primary mb-2" id="modalQueueDept"><?= htmlspecialchars($queue['department'] ?? '') ?></span>
-                    <h1 class="display-3 manrope-800 text-primary my-2" id="modalMyQueue"><?= $myTicket !== null ? $myTicket : '—' ?></h1>
+                    <h1 class="display-3 manrope-800 text-primary my-2" id="modalMyQueue"><?= htmlspecialchars(format_department_ticket($myDeptForQueue ?? '', $myTicket)) ?></h1>
                     <p class="text-muted">Your Assigned Ticket Number</p>
                     <div class="row g-3 mt-3">
                         <div class="col-6">
                             <div class="p-3 border rounded">
                                 <small class="text-muted d-block">Now Serving</small>
-                                <h3 class="text-success mb-0 manrope-700" id="modalServingQueue"><?= $currentlyServing >= 0 ? (int) $currentlyServing : '—' ?></h3>
+                                <h3 class="text-success mb-0 manrope-700" id="modalServingQueue"><?= htmlspecialchars(format_department_ticket($myDeptForQueue ?? '', $currentlyServing)) ?></h3>
                             </div>
                         </div>
                         <div class="col-6">

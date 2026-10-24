@@ -85,6 +85,38 @@ function department_wait_minutes_per_patient(string $department): int {
     return $minutesByDepartment[$department] ?? 20;
 }
 
+function department_ticket_prefix(string $department): string {
+    $prefixes = [
+        'Cardiology' => 'C',
+        'Neurology' => 'N',
+        'Orthopedics' => 'OR',
+        'Pediatrics' => 'P',
+        'General Medicine' => 'GM',
+        'Dermatology' => 'D',
+        'ENT' => 'E',
+        'Psychiatry' => 'PS',
+        'Radiology' => 'R',
+        'Oncology' => 'ON',
+    ];
+
+    if (isset($prefixes[$department])) {
+        return $prefixes[$department];
+    }
+
+    $words = preg_split('/[^a-zA-Z0-9]+/', trim($department), -1, PREG_SPLIT_NO_EMPTY);
+    $initials = implode('', array_map(static fn(string $word): string => strtoupper($word[0]), $words ?: []));
+
+    return $initials !== '' ? $initials : 'Q';
+}
+
+function format_department_ticket(string $department, ?int $ticketNumber): string {
+    if ($ticketNumber === null || $ticketNumber < 0) {
+        return '—';
+    }
+
+    return department_ticket_prefix($department) . str_pad((string) $ticketNumber, 2, '0', STR_PAD_LEFT);
+}
+
 function department_estimated_wait(PDO $pdo, string $department, int $ticketNumber, string $status): array {
     if ($status === 'Called') {
         return ['ahead' => 0, 'minutes' => 0];

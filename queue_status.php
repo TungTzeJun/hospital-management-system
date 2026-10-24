@@ -56,6 +56,7 @@ $response = [
     'waiting'           => $waiting,
     'progressPct'       => $progressPct,
     'department'        => $department,
+    'ticketPrefix'      => department_ticket_prefix($department),
 ];
 
 // Patients also get their own ticket + personalized wait estimate for

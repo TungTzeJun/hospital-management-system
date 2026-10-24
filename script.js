@@ -188,6 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // shown the "your turn" popup for, so it fires exactly once per
     // ticket (not on every 5-second poll while it stays their turn).
     let turnNotifiedForTicket = null;
+    function formatQueueTicket(prefix, ticket) {
+        return ticket !== null && ticket >= 0
+            ? `${prefix}${String(ticket).padStart(2, '0')}`
+            : '—';
+    }
 
     // Patient dashboard: one queue widget for whichever single department
     // their next appointment is in (department comes from the widget's
@@ -202,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (typeof data.myTicket !== 'undefined') {
             const hasMyTicket = data.myTicket !== null;
-            if (myQueueEl) myQueueEl.textContent = hasMyTicket ? data.myTicket : '—';
+            if (myQueueEl) myQueueEl.textContent = formatQueueTicket(data.ticketPrefix, data.myTicket);
             if (patientsAheadEl) patientsAheadEl.textContent = hasMyTicket ? data.ahead : '—';
             if (estimatedWaitEl) estimatedWaitEl.textContent = hasMyTicket ? `${data.estWaitMins} mins` : '—';
             // Only relevant once a ticket actually exists — e.g. midnight
@@ -210,22 +215,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (noTicketNoteEl) noTicketNoteEl.style.display = hasMyTicket ? 'none' : '';
         }
         if (callStatusEl) callStatusEl.classList.toggle('d-none', !data.myTurn);
-        if (currentQueueEl) currentQueueEl.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
+        if (currentQueueEl) currentQueueEl.textContent = formatQueueTicket(data.ticketPrefix, data.currentlyServing);
 
         // Patient "Queue Tracker" modal
         const modalMyQueue = document.getElementById('modalMyQueue');
         const modalServingQueue = document.getElementById('modalServingQueue');
         const modalAheadQueue = document.getElementById('modalAheadQueue');
         if (typeof data.myTicket !== 'undefined') {
-            if (modalMyQueue) modalMyQueue.textContent = data.myTicket !== null ? data.myTicket : '—';
+            if (modalMyQueue) modalMyQueue.textContent = formatQueueTicket(data.ticketPrefix, data.myTicket);
             if (modalAheadQueue) modalAheadQueue.textContent = data.ahead;
         }
-        if (modalServingQueue) modalServingQueue.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
+        if (modalServingQueue) modalServingQueue.textContent = formatQueueTicket(data.ticketPrefix, data.currentlyServing);
 
         // Toast the patient when a new ticket gets called while on the page
         if (lastKnownServing !== null && data.currentlyServing > lastKnownServing) {
             if (!data.myTurn) {
-                showToast(`Now Serving Ticket #${data.currentlyServing}`, '🎫');
+                showToast(`Now Serving Ticket ${formatQueueTicket(data.ticketPrefix, data.currentlyServing)}`, '🎫');
             }
         }
         lastKnownServing = data.currentlyServing;
@@ -264,8 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const progressEl = panel.querySelector('.dept-progress-bar');
         const callNextBtn = panel.querySelector('.dept-call-next-btn');
 
-        if (servingEl) servingEl.textContent = data.currentlyServing >= 0 ? data.currentlyServing : '—';
-        if (nextEl) nextEl.textContent = data.nextTicket;
+        const ticketPrefix = panel.dataset.ticketPrefix || data.ticketPrefix;
+        if (servingEl) servingEl.textContent = formatQueueTicket(ticketPrefix, data.currentlyServing);
+        if (nextEl) nextEl.textContent = formatQueueTicket(ticketPrefix, data.nextTicket);
         if (waitingEl) waitingEl.textContent = data.waiting;
         if (progressEl) progressEl.style.width = `${data.progressPct}%`;
         // Keep in sync with the server-side guard: nothing to call
@@ -274,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const prevServing = parseInt(panel.dataset.lastServing || '-1', 10);
         if (prevServing >= 0 && data.currentlyServing > prevServing) {
-            showToast(`${panel.dataset.department}: Now Serving Ticket #${data.currentlyServing}`, '🎫');
+            showToast(`${panel.dataset.department}: Now Serving Ticket ${formatQueueTicket(ticketPrefix, data.currentlyServing)}`, '🎫');
         }
         panel.dataset.lastServing = data.currentlyServing;
     }
