@@ -198,6 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // their next appointment is in (department comes from the widget's
     // own data-department attribute — see index.php).
     function updateQueueDomPatient(data) {
+        const queueSection = document.getElementById('queue-section');
+        const ticketPrefix = queueSection?.dataset.ticketPrefix || data.ticketPrefix || '';
         const myQueueEl = document.getElementById('myQueueNumber');
         const currentQueueEl = document.getElementById('currentQueueNumber');
         const patientsAheadEl = document.getElementById('patientsAheadCount');
@@ -207,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (typeof data.myTicket !== 'undefined') {
             const hasMyTicket = data.myTicket !== null;
-            if (myQueueEl) myQueueEl.textContent = formatQueueTicket(data.ticketPrefix, data.myTicket);
+            if (myQueueEl) myQueueEl.textContent = formatQueueTicket(ticketPrefix, data.myTicket);
             if (patientsAheadEl) patientsAheadEl.textContent = hasMyTicket ? data.ahead : '—';
             if (estimatedWaitEl) estimatedWaitEl.textContent = hasMyTicket ? `${data.estWaitMins} mins` : '—';
             // Only relevant once a ticket actually exists — e.g. midnight
@@ -215,22 +217,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (noTicketNoteEl) noTicketNoteEl.style.display = hasMyTicket ? 'none' : '';
         }
         if (callStatusEl) callStatusEl.classList.toggle('d-none', !data.myTurn);
-        if (currentQueueEl) currentQueueEl.textContent = formatQueueTicket(data.ticketPrefix, data.currentlyServing);
+        if (currentQueueEl) currentQueueEl.textContent = formatQueueTicket(ticketPrefix, data.currentlyServing);
 
         // Patient "Queue Tracker" modal
         const modalMyQueue = document.getElementById('modalMyQueue');
         const modalServingQueue = document.getElementById('modalServingQueue');
         const modalAheadQueue = document.getElementById('modalAheadQueue');
         if (typeof data.myTicket !== 'undefined') {
-            if (modalMyQueue) modalMyQueue.textContent = formatQueueTicket(data.ticketPrefix, data.myTicket);
+            if (modalMyQueue) modalMyQueue.textContent = formatQueueTicket(ticketPrefix, data.myTicket);
             if (modalAheadQueue) modalAheadQueue.textContent = data.ahead;
         }
-        if (modalServingQueue) modalServingQueue.textContent = formatQueueTicket(data.ticketPrefix, data.currentlyServing);
+        if (modalServingQueue) modalServingQueue.textContent = formatQueueTicket(ticketPrefix, data.currentlyServing);
 
         // Toast the patient when a new ticket gets called while on the page
         if (lastKnownServing !== null && data.currentlyServing > lastKnownServing) {
             if (!data.myTurn) {
-                showToast(`Now Serving Ticket ${formatQueueTicket(data.ticketPrefix, data.currentlyServing)}`, '🎫');
+                showToast(`Now Serving Ticket ${formatQueueTicket(ticketPrefix, data.currentlyServing)}`, '🎫');
             }
         }
         lastKnownServing = data.currentlyServing;

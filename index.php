@@ -257,7 +257,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
             </div>
 
             <!-- Live Queue Widget -->
-            <div class="card-custom queue-card" id="queue-section" data-my-ticket="<?= (int) $myTicket ?>" data-department="<?= htmlspecialchars($myDeptForQueue ?? '') ?>">
+            <div class="card-custom queue-card" id="queue-section" data-my-ticket="<?= (int) $myTicket ?>" data-department="<?= htmlspecialchars($myDeptForQueue ?? '') ?>" data-ticket-prefix="<?= htmlspecialchars(department_ticket_prefix($myDeptForQueue ?? '')) ?>">
                 <div class="card-header-custom">
                     <span>Waiting Status</span>
                     <span class="queue-badge-live"><span class="pulse-dot"></span> Live Queue</span>
@@ -465,7 +465,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
     <div class="toast-container-custom" id="toastContainer"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=<?= (int) filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'script.js') ?>"></script>
     <?php render_flash_script(); ?>
 </body>
 

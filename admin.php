@@ -731,7 +731,7 @@ function statusBadge(string $status): string {
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=<?= (int) filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'script.js') ?>"></script>
     <?php render_flash_script(); ?>
 </body>
 
