@@ -226,7 +226,7 @@ if ($isDoctor) {
     $stmt->execute([$myDepartment, $myDepartment, $myDepartment]);
     $totalPatients = $stmt->fetch()['c'];
 
-    $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id WHERE a.appt_date = CURDATE() AND a.status != 'Cancelled' AND d.department = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id WHERE a.appt_date = CURDATE() AND a.status NOT IN ('Cancelled', 'Completed') AND d.department = ?");
     $stmt->execute([$myDepartment]);
     $todaysApptCount = $stmt->fetch()['c'];
 
@@ -235,7 +235,7 @@ if ($isDoctor) {
     $pendingReports = $stmt->fetch()['c'];
 } else {
     $totalPatients   = $pdo->query('SELECT COUNT(*) AS c FROM patients')->fetch()['c'];
-    $todaysApptCount = $pdo->query("SELECT COUNT(*) AS c FROM appointments WHERE appt_date = CURDATE() AND status != 'Cancelled'")->fetch()['c'];
+    $todaysApptCount = $pdo->query("SELECT COUNT(*) AS c FROM appointments WHERE appt_date = CURDATE() AND status NOT IN ('Cancelled', 'Completed')")->fetch()['c'];
     $pendingReports  = $pdo->query("SELECT COUNT(*) AS c FROM medical_records WHERE status = 'Under Review'")->fetch()['c'];
 }
 
@@ -294,7 +294,7 @@ $apptSql = "SELECT a.*, u1.full_name AS patient_name, p.patient_code, u2.full_na
             JOIN users u1 ON u1.id = p.user_id
             JOIN doctors d ON d.id = a.doctor_id
             JOIN users u2 ON u2.id = d.user_id
-            WHERE a.appt_date = CURDATE()";
+            WHERE a.appt_date = CURDATE() AND a.status != 'Completed'";
 $apptParams = [];
 if ($isDoctor) {
     $apptSql .= ' AND d.department = ?';
