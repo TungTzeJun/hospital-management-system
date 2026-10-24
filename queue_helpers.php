@@ -91,30 +91,21 @@ function department_estimated_wait(PDO $pdo, string $department, int $ticketNumb
     }
 
     $stmt = $pdo->prepare(
-        "SELECT
-            SUM(CASE WHEN a.status IN ('Confirmed','Pending','Arrived') THEN 1 ELSE 0 END) AS waiting_ahead,
-            SUM(CASE WHEN a.status = 'Called' THEN 1 ELSE 0 END) AS called_ahead
+        "SELECT COUNT(*) AS waiting_ahead
          FROM appointments a
          JOIN doctors d ON d.id = a.doctor_id
          WHERE d.department = ? AND a.appt_date = CURDATE()
-           AND a.status IN ('Confirmed','Pending','Arrived','Called')
+           AND a.status IN ('Confirmed','Pending','Arrived')
            AND a.ticket_number < ?"
     );
     $stmt->execute([$department, $ticketNumber]);
-    $counts = $stmt->fetch();
-    $waitingAhead = (int) ($counts['waiting_ahead'] ?? 0);
-    $calledAhead = (int) ($counts['called_ahead'] ?? 0);
-    $ahead = $waitingAhead + $calledAhead;
-
-    if ($ahead === 0) {
-        return ['ahead' => 0, 'minutes' => 0];
-    }
+    $waitingAhead = (int) $stmt->fetch()['waiting_ahead'];
 
     $minutesPerPatient = department_wait_minutes_per_patient($department);
     $currentlyServing = department_currently_serving($pdo, $department);
     $servingAhead = $currentlyServing >= 0 && $currentlyServing < $ticketNumber;
-    $otherCalledAhead = max(0, $calledAhead - (int) $servingAhead);
-    $minutes = ($waitingAhead + $otherCalledAhead) * $minutesPerPatient;
+    $ahead = $waitingAhead + (int) $servingAhead;
+    $minutes = $waitingAhead * $minutesPerPatient;
 
     if ($servingAhead) {
         $stmt = $pdo->prepare(

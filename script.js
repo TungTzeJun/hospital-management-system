@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!queueSection) return;
         const department = queueSection.dataset.department || '';
         if (!department) return; // no upcoming appointment → nothing to poll
-        fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin' })
+        fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin', cache: 'no-store' })
             .then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(updateQueueDomPatient)
             .catch(() => { /* e.g. session expired mid-poll — just skip this tick */ });
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dept-queue-panel').forEach(panel => {
             const department = panel.dataset.department;
             if (!department) return;
-            fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin' })
+            fetch(`queue_status.php?department=${encodeURIComponent(department)}`, { credentials: 'same-origin', cache: 'no-store' })
                 .then(res => res.ok ? res.json() : Promise.reject(res.status))
                 .then(data => updateDeptPanel(panel, data))
                 .catch(() => { /* skip this tick */ });

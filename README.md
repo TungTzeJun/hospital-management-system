@@ -105,6 +105,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 - Every data-changing form (login, register, book/cancel, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
 - The session cookie is `HttpOnly` + `SameSite=Lax`. Once served over HTTPS, uncomment `'secure' => true` in `auth.php`'s `session_set_cookie_params()`.
 - Ticket numbers start at #1 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
+- Patient wait estimates recalculate on each live queue poll using unserved tickets ahead and the current called ticket's remaining service time. Called tickets that have already been passed are no longer counted; queue-status responses are not cached.
 
 ---
 

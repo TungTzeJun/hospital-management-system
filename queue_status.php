@@ -11,6 +11,8 @@ require_once 'db.php';
 require_once 'queue_helpers.php';
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 // Any logged-in role (patient, doctor, admin) may poll this —
 // require_login() rather than require_role() so it works on
