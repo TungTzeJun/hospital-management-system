@@ -93,6 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $appointment = $next->fetch();
             if ($appointment) {
                 get_or_create_queue($pdo, $targetDepartment);
+                $pdo->prepare(
+                    "UPDATE appointments a JOIN doctors d ON d.id = a.doctor_id
+                     SET a.status = 'Completed'
+                     WHERE d.department = ? AND a.appt_date = CURDATE()
+                       AND a.status = 'Called' AND a.ticket_number < ?"
+                )->execute([$targetDepartment, $appointment['ticket_number']]);
                 $pdo->prepare("UPDATE appointments SET status = 'Called' WHERE id = ?")->execute([$appointment['id']]);
                 $pdo->prepare('UPDATE queue_state SET currently_serving = ? WHERE department = ?')->execute([$appointment['ticket_number'], $targetDepartment]);
                 $pdo->commit();
