@@ -309,7 +309,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                     <h5 class="manrope-700 mb-0">Recent Medical Records & Reports</h5>
                     <small class="text-muted">Access lab test results, doctor notes, and clinical histories</small>
                 </div>
-                <button class="btn btn-outline-custom btn-sm" id="downloadAllRecordsBtn">📥 Export All (PDF)</button>
+                <button class="btn btn-outline-custom btn-sm" id="downloadAllRecordsBtn" data-patient-name="<?= htmlspecialchars($_SESSION['full_name'], ENT_QUOTES, 'UTF-8') ?>">📥 Export All (PDF)</button>
             </div>
             <div class="card-body-custom">
                 <div class="records-table-container">
@@ -322,7 +322,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                                 <tr><td colspan="4" class="text-muted text-center py-3">No medical records yet.</td></tr>
                             <?php endif; ?>
                             <?php foreach ($records as $r): ?>
-                                <tr>
+                                <tr data-notes="<?= htmlspecialchars($r['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                                     <td><?= date('d M Y', strtotime($r['record_date'])) ?></td>
                                     <td><strong><?= htmlspecialchars($r['title']) ?></strong></td>
                                     <td><?= htmlspecialchars($r['doctor_name']) ?></td>
@@ -470,6 +470,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
     <div class="toast-container-custom" id="toastContainer"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="script.js"></script>
     <?php render_flash_script(); ?>
 </body>

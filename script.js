@@ -615,14 +615,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Quick Export Button
+    // Export all medical records as a downloadable PDF.
     const downloadAllRecordsBtn = document.getElementById('downloadAllRecordsBtn');
     if (downloadAllRecordsBtn) {
         downloadAllRecordsBtn.addEventListener('click', () => {
-            showToast('Preparing medical records PDF download...', '📄');
-            setTimeout(() => {
-                showToast('Medical_Records_John_Doe.pdf downloaded!', '📥');
-            }, 1500);
+            const PDFDocument = window.jspdf?.jsPDF;
+            if (!PDFDocument) {
+                console.error('Unable to export medical records: the PDF library did not load.');
+                showToast('PDF export is unavailable. Please check your connection and try again.', '⚠️');
+                return;
+            }
+
+            try {
+                const patientName = downloadAllRecordsBtn.dataset.patientName || 'Patient';
+                const records = [...document.querySelectorAll('#records-section .records-table tbody tr')]
+                    .filter(row => row.cells.length === 4)
+                    .map(row => ({
+                        date: row.cells[0].innerText.trim(),
+                        title: row.cells[1].innerText.trim(),
+                        doctor: row.cells[2].innerText.trim(),
+                        status: row.cells[3].innerText.trim(),
+                        notes: row.dataset.notes?.trim() || 'No notes provided.'
+                    }));
+
+                const pdf = new PDFDocument({ unit: 'mm', format: 'a4' });
+                const margin = 18;
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const contentWidth = pageWidth - margin * 2;
+                let y = margin;
+
+                function writeLines(text, fontSize, fontStyle = 'normal', spacing = 5) {
+                    pdf.setFont('helvetica', fontStyle);
+                    pdf.setFontSize(fontSize);
+                    const lines = pdf.splitTextToSize(text, contentWidth);
+                    lines.forEach(line => {
+                        if (y + spacing > pageHeight - margin) {
+                            pdf.addPage();
+                            y = margin;
+                        }
+                        pdf.text(line, margin, y);
+                        y += spacing;
+                    });
+                }
+
+                writeLines('Medical Records', 18, 'bold', 8);
+                writeLines(`Patient: ${patientName}`, 11);
+                writeLines(`Exported: ${new Date().toLocaleDateString()}`, 10);
+                y += 4;
+
+                if (records.length === 0) {
+                    writeLines('No medical records are available.', 11);
+                } else {
+                    records.forEach((record, index) => {
+                        if (y + 24 > pageHeight - margin) {
+                            pdf.addPage();
+                            y = margin;
+                        }
+                        writeLines(`${index + 1}. ${record.title}`, 12, 'bold', 6);
+                        writeLines(`Date: ${record.date}    Physician: ${record.doctor}`, 10);
+                        writeLines(`Status: ${record.status}`, 10);
+                        writeLines(`Notes: ${record.notes}`, 10);
+                        y += 4;
+                    });
+                }
+
+                const pageCount = pdf.internal.getNumberOfPages();
+                for (let page = 1; page <= pageCount; page++) {
+                    pdf.setPage(page);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(9);
+                    pdf.text(`Page ${page} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+                }
+
+                const safePatientName = patientName.replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'Patient';
+                pdf.save(`Medical_Records_${safePatientName}.pdf`);
+                showToast('Your medical records PDF has been downloaded.', '📥');
+            } catch (error) {
+                console.error('Unable to export medical records PDF.', error);
+                showToast('Could not generate the PDF. Please try again.', '⚠️');
+            }
         });
     }
 
