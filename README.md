@@ -49,7 +49,7 @@ LEFT JOIN (
 SET qs.currently_serving = COALESCE(called.ticket_number, -1);
 ```
 
-After this migration, tickets are numbered from #1 for each department and day. Each doctor's/admin's **Call Next** action marks only the next waiting appointment as `Called`; that patient sees the call on their dashboard and is removed from the waiting count.
+After this migration, tickets are numbered from #1 for each department and day. Each doctor's/admin's **Call Next** action marks only the next waiting appointment as `Called`; that patient sees the call on their dashboard and is removed from the waiting count. The live serving number is read from today's `Called` appointments, so an old counter cannot carry over after midnight. New ticket allocation is serialized per department to avoid duplicate numbers when bookings happen at the same time.
 
 ### Demo accounts (password: `password123` for all demo accounts)
 

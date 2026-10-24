@@ -60,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'book_
                 // Ticket numbers reset per department per day, scoped to
                 // that department's bookings (each department runs its own
                 // queue now — see queue_helpers.php).
+                lock_department_queue($pdo, $rawDepartment);
                 $nextTicket = next_ticket_number($pdo, $rawDepartment, $date);
 
                 $ins = $pdo->prepare('INSERT INTO appointments (patient_id, doctor_id, department, appt_date, appt_time, reason, status, ticket_number) VALUES (?, ?, ?, ?, ?, ?, "Confirmed", ?)');
@@ -101,14 +102,17 @@ $nextAppt = $stmt->fetch();
 // have no upcoming appointment there's nothing to look up.
 $myDeptForQueue = $nextAppt['doctor_department'] ?? null;
 $queue = $myDeptForQueue ? get_or_create_queue($pdo, $myDeptForQueue) : null;
-$currentlyServing = $queue['currently_serving'] ?? -1;
+$today = $pdo->query('SELECT CURDATE()')->fetchColumn();
 // Only show a live queue ticket if $nextAppt is actually TODAY.
 // $nextAppt can be a future-dated appointment (the query above looks
 // ahead with appt_date >= CURDATE()), but "Currently Serving" is only
 // ever today's counter — showing a future day's ticket number next to
 // today's counter compares two unrelated queues and looks arbitrarily
 // high/wrong. If it's not today, there's no live ticket yet.
-$myTicket = ($nextAppt && $nextAppt['appt_date'] === date('Y-m-d')) ? (int) $nextAppt['ticket_number'] : null;
+$myTicket = ($nextAppt && $nextAppt['appt_date'] === $today) ? (int) $nextAppt['ticket_number'] : null;
+$currentlyServing = ($myTicket !== null && $myDeptForQueue)
+    ? department_currently_serving($pdo, $myDeptForQueue)
+    : -1;
 // Same real, status-based counting as admin's "Total Waiting" — count
 // of today's still-open appointments in the SAME DEPARTMENT with a
 // smaller ticket number — not ticket-number arithmetic, so the two

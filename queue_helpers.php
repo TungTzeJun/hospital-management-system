@@ -48,6 +48,31 @@ function get_or_create_queue(PDO $pdo, string $department): array {
     return $row;
 }
 
+// Lock a department's queue row while allocating a ticket so concurrent
+// bookings cannot both receive the same next number.
+function lock_department_queue(PDO $pdo, string $department): void {
+    get_or_create_queue($pdo, $department);
+
+    $stmt = $pdo->prepare('SELECT id FROM queue_state WHERE department = ? FOR UPDATE');
+    $stmt->execute([$department]);
+    if (!$stmt->fetch()) {
+        throw new RuntimeException("Could not lock the queue row for department \"{$department}\".");
+    }
+}
+
+// The live serving number is scoped to today's Called appointments. The
+// queue_state counter is retained for compatibility, but can be stale after
+// midnight because ticket numbers restart each day.
+function department_currently_serving(PDO $pdo, string $department): int {
+    $stmt = $pdo->prepare(
+        "SELECT COALESCE(MAX(a.ticket_number), -1) AS t FROM appointments a
+         JOIN doctors d ON d.id = a.doctor_id
+         WHERE d.department = ? AND a.appt_date = CURDATE() AND a.status = 'Called'"
+    );
+    $stmt->execute([$department]);
+    return (int) $stmt->fetch()['t'];
+}
+
 // All departments that currently have at least one doctor. This is what
 // drives the admin "one card per department" queue view, and is used to
 // validate that a department name POSTed from a form is a real one
@@ -112,8 +137,7 @@ function department_next_ticket(PDO $pdo, string $department): int {
         return (int) $ticket;
     }
 
-    $queue = get_or_create_queue($pdo, $department);
-    return max(1, (int) $queue['currently_serving'] + 1);
+    return max(1, department_currently_serving($pdo, $department) + 1);
 }
 
 // Short, URL/DOM-id-safe slug for a department name (e.g. "General

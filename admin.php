@@ -234,8 +234,8 @@ $queueDepartments = $isDoctor ? [$myDepartment] : active_departments($pdo);
 $departmentQueues = [];
 $totalWaitingAllDepts = 0;
 foreach ($queueDepartments as $dept) {
-    $q = get_or_create_queue($pdo, $dept);
-    $serving  = (int) $q['currently_serving'];
+    get_or_create_queue($pdo, $dept);
+    $serving  = department_currently_serving($pdo, $dept);
     // Scoped to today's tickets for THIS department only, so the queue
     // math doesn't drift upward forever and departments don't share
     // each other's ticket counters.

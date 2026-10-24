@@ -41,7 +41,8 @@ if ($department === '') {
 }
 
 $queue = get_or_create_queue($pdo, $department);
-$currentlyServing = (int) $queue['currently_serving'];
+$today = $pdo->query('SELECT CURDATE()')->fetchColumn();
+$currentlyServing = department_currently_serving($pdo, $department);
 $maxTicket = department_max_ticket($pdo, $department);
 $waiting = department_waiting_count($pdo, $department);
 $progressPct = $maxTicket > 0 ? min(100, max(0, round(($currentlyServing / $maxTicket) * 100))) : ($currentlyServing >= 0 ? 100 : 0);
@@ -77,7 +78,7 @@ if (current_role() === 'patient') {
         // Only a live ticket if that appointment is actually TODAY —
         // see index.php for why (a future date's ticket number has
         // nothing to do with today's currentlyServing counter).
-        if ($row && $row['appt_date'] === date('Y-m-d')) {
+        if ($row && $row['appt_date'] === $today) {
             $myTicket = (int) $row['ticket_number'];
             $myStatus = $row['status'];
         }
