@@ -203,7 +203,7 @@ function next_ticket_number(PDO $pdo, string $department, string $date): int {
 }
 
 // The next eligible appointment's ticket number, including gaps left by
-// cancelled or completed appointments.
+// cancelled or completed appointments. Return -1 when nobody is waiting.
 function department_next_ticket(PDO $pdo, string $department): int {
     $stmt = $pdo->prepare(
         "SELECT MIN(a.ticket_number) AS t FROM appointments a
@@ -217,7 +217,7 @@ function department_next_ticket(PDO $pdo, string $department): int {
         return (int) $ticket;
     }
 
-    return max(1, department_currently_serving($pdo, $department) + 1);
+    return -1;
 }
 
 // Short, URL/DOM-id-safe slug for a department name (e.g. "General
