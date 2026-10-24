@@ -113,17 +113,14 @@ $myTicket = ($nextAppt && $nextAppt['appt_date'] === $today) ? (int) $nextAppt['
 $currentlyServing = ($myTicket !== null && $myDeptForQueue)
     ? department_currently_serving($pdo, $myDeptForQueue)
     : -1;
-// Same real, status-based counting as admin's "Total Waiting" — count
-// of today's still-open appointments in the SAME DEPARTMENT with a
-// smaller ticket number — not ticket-number arithmetic, so the two
-// numbers agree with each other (and don't count tickets that were
-// cancelled, already done, or belong to a different department's queue).
+// Count every unfinished appointment ahead, including tickets already
+// called to the station, which are still being served and add to wait time.
 $ahead = 0;
-if ($myTicket !== null && $myDeptForQueue) {
+if ($myTicket !== null && $myDeptForQueue && $nextAppt['status'] !== 'Called') {
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id
          WHERE d.department = ? AND a.appt_date = CURDATE()
-           AND a.status IN ('Confirmed','Pending','Arrived') AND a.ticket_number < ?"
+           AND a.status IN ('Confirmed','Pending','Arrived','Called') AND a.ticket_number < ?"
     );
     $stmt->execute([$myDeptForQueue, $myTicket]);
     $ahead = (int) $stmt->fetch()['c'];

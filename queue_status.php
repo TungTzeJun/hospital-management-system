@@ -84,15 +84,14 @@ if (current_role() === 'patient') {
         }
     }
 
-    // Same real, status-based counting as "Total Waiting" on the admin
-    // side — today's still-open appointments in this department with a
-    // smaller ticket number — so the two figures always agree.
+    // Include earlier Called appointments: they are no longer in the
+    // waiting count, but can still be in service ahead of this patient.
     $ahead = 0;
-    if ($myTicket !== null) {
+    if ($myTicket !== null && $myStatus !== 'Called') {
         $stmt = $pdo->prepare(
             "SELECT COUNT(*) AS c FROM appointments a JOIN doctors d ON d.id = a.doctor_id
              WHERE d.department = ? AND a.appt_date = CURDATE()
-               AND a.status IN ('Confirmed','Pending','Arrived') AND a.ticket_number < ?"
+               AND a.status IN ('Confirmed','Pending','Arrived','Called') AND a.ticket_number < ?"
         );
         $stmt->execute([$department, $myTicket]);
         $ahead = (int) $stmt->fetch()['c'];
