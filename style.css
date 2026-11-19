@@ -419,6 +419,32 @@ body {
     border-bottom-left-radius: 8px;
 }
 
+.patient-directory-entry {
+    background-color: var(--bg-card-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 0.75rem;
+}
+
+.patient-directory-summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    justify-content: space-between;
+    padding: 1rem;
+}
+
+.patient-directory-content {
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.patient-directory-content .records-table {
+    margin-bottom: 0.5rem;
+}
+
 .records-table td:last-child, .records-table th:last-child {
     border-right: 1px solid var(--border-color);
     border-top-right-radius: 8px;
