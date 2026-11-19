@@ -173,6 +173,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'add_prescription') {
+        $recordId = (int) ($_POST['record_id'] ?? 0);
+        $medicineInput = $_POST['medicine_name'] ?? '';
+        $dosageInput = $_POST['dosage'] ?? '';
+        $instructionsInput = $_POST['instructions'] ?? '';
+        $validUntilInput = $_POST['valid_until'] ?? '';
+        $medicine = is_string($medicineInput) ? trim($medicineInput) : '';
+        $dosage = is_string($dosageInput) ? trim($dosageInput) : '';
+        $instructions = is_string($instructionsInput) ? trim($instructionsInput) : '';
+        $quantity = filter_var($_POST['quantity'] ?? null, FILTER_VALIDATE_INT);
+        $refills = filter_var($_POST['refills_allowed'] ?? null, FILTER_VALIDATE_INT);
+        $validUntil = is_string($validUntilInput) ? trim($validUntilInput) : '';
+        $validDate = DateTimeImmutable::createFromFormat('!Y-m-d', $validUntil);
+        $validDateErrors = DateTimeImmutable::getLastErrors();
+        $isValidUntil = $validDate
+            && ($validDateErrors === false || ($validDateErrors['warning_count'] === 0 && $validDateErrors['error_count'] === 0))
+            && $validDate->format('Y-m-d') === $validUntil;
+
+        $recordStmt = $pdo->prepare(
+            'SELECT mr.patient_id, mr.doctor_id
+             FROM medical_records mr
+             JOIN doctors d ON d.id = mr.doctor_id
+             WHERE mr.id = ? AND mr.record_date <= CURDATE()' . ($isDoctor ? ' AND d.department = ?' : '')
+        );
+        $recordStmt->execute($isDoctor ? [$recordId, $myDepartment] : [$recordId]);
+        $prescriptionRecord = $recordStmt->fetch();
+
+        if (!$prescriptionRecord) {
+            flash('Choose a checkup record you are allowed to manage.', '??');
+        } elseif (
+            $medicine === '' || strlen($medicine) > 150
+            || $dosage === '' || strlen($dosage) > 120
+            || $instructions === ''
+            || $quantity === false || $quantity < 1 || $quantity > 1000
+            || $refills === false || $refills < 0 || $refills > 5
+            || !$isValidUntil || $validUntil < $pdo->query('SELECT CURDATE()')->fetchColumn()
+        ) {
+            flash('Enter a valid medicine, dosage, instructions, quantity, refill count, and expiry date today or later.', '??');
+        } else {
+            $pdo->prepare(
+                'INSERT INTO prescriptions
+                    (medical_record_id, patient_id, doctor_id, medicine_name, dosage, instructions, quantity, refills_allowed, valid_until)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([
+                $recordId,
+                $prescriptionRecord['patient_id'],
+                $prescriptionRecord['doctor_id'],
+                $medicine,
+                $dosage,
+                $instructions,
+                $quantity,
+                $refills,
+                $validUntil,
+            ]);
+            flash('Prescription added to the patient checkup.', '??');
+        }
+    }
+
+    if ($action === 'update_pharmacy_order') {
+        if ($isDoctor) {
+            flash('Only pharmacy administrators can update medication order status.', '??');
+        } else {
+            $orderId = (int) ($_POST['order_id'] ?? 0);
+            $newStatus = $_POST['status'] ?? '';
+            $orderStmt = $pdo->prepare('SELECT status FROM pharmacy_orders WHERE id = ?');
+            $orderStmt->execute([$orderId]);
+            $order = $orderStmt->fetch();
+            $allowedTransitions = [
+                'Requested' => ['Ready', 'Cancelled'],
+                'Ready' => ['Collected', 'Cancelled'],
+            ];
+
+            if (!$order || !in_array($newStatus, $allowedTransitions[$order['status']] ?? [], true)) {
+                flash('That medication order can no longer be updated to the selected status.', '??');
+            } else {
+                $update = $pdo->prepare('UPDATE pharmacy_orders SET status = ? WHERE id = ? AND status = ?');
+                $update->execute([$newStatus, $orderId, $order['status']]);
+                flash(
+                    $update->rowCount() ? 'Medication order updated to ' . $newStatus . '.' : 'That medication order was already updated.',
+                    $update->rowCount() ? '?' : '??'
+                );
+            }
+        }
+    }
+
     if ($action === 'verify_record') {
         $id = (int) ($_POST['record_id'] ?? 0);
         if ($isDoctor && !record_in_department($pdo, $id, $myDepartment)) {
@@ -293,6 +378,37 @@ $recordsSql .= ' ORDER BY mr.record_date DESC LIMIT 25';
 $stmt = $pdo->prepare($recordsSql);
 $stmt->execute($recordsParams);
 $records = $stmt->fetchAll();
+
+$prescriptionOptionsSql = "SELECT mr.id, mr.title, mr.record_date, u1.full_name AS patient_name
+                           FROM medical_records mr
+                           JOIN patients p ON p.id = mr.patient_id
+                           JOIN users u1 ON u1.id = p.user_id
+                           JOIN doctors d ON d.id = mr.doctor_id
+                           WHERE mr.record_date <= CURDATE()";
+$prescriptionOptionsParams = [];
+if ($isDoctor) {
+    $prescriptionOptionsSql .= ' AND d.department = ?';
+    $prescriptionOptionsParams[] = $myDepartment;
+}
+$prescriptionOptionsSql .= ' ORDER BY mr.record_date DESC, mr.id DESC';
+$stmt = $pdo->prepare($prescriptionOptionsSql);
+$stmt->execute($prescriptionOptionsParams);
+$prescriptionOptions = $stmt->fetchAll();
+
+$pharmacyOrders = [];
+if (!$isDoctor) {
+    $pharmacyOrders = $pdo->query(
+        "SELECT po.id, po.quantity, po.status, po.created_at,
+                pr.medicine_name, pr.dosage,
+                p.patient_code, u.full_name AS patient_name
+         FROM pharmacy_orders po
+         JOIN prescriptions pr ON pr.id = po.prescription_id
+         JOIN patients p ON p.id = po.patient_id
+         JOIN users u ON u.id = p.user_id
+         WHERE po.status IN ('Requested', 'Ready')
+         ORDER BY po.created_at ASC"
+    )->fetchAll();
+}
 
 $apptSql = "SELECT a.*, u1.full_name AS patient_name, p.patient_code, u2.full_name AS doctor_name
             FROM appointments a
@@ -497,6 +613,7 @@ function statusBadge(string $status): string {
                         <option value="Under Review">Under Review</option>
                     </select>
                     <input type="text" class="form-control form-control-custom table-search-bar" id="adminRecordSearch" placeholder="🔍 Search patient name or ID...">
+                    <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addPrescriptionModal">+ Add Prescription</button>
                     <button class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addRecordModal">+ Add Record</button>
                 </div>
             </div>
@@ -556,6 +673,66 @@ function statusBadge(string $status): string {
             </div>
         </section>
 
+        <?php if (!$isDoctor): ?>
+        <section class="card-custom mb-4" id="pharmacy-orders">
+            <div class="card-header-custom">
+                <div>
+                    <h5 class="manrope-700 mb-0">Medication Requests</h5>
+                    <small class="text-muted">Review patient requests and update pickup status.</small>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <div class="records-table-container">
+                    <table class="records-table">
+                        <thead>
+                            <tr><th>Requested</th><th>Patient</th><th>Medication</th><th>Quantity</th><th>Status</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$pharmacyOrders): ?>
+                                <tr><td colspan="6" class="text-muted text-center py-3">No medication requests are waiting for action.</td></tr>
+                            <?php endif; ?>
+                            <?php foreach ($pharmacyOrders as $order): ?>
+                                <tr>
+                                    <td><?= date('d M Y, h:i A', strtotime($order['created_at'])) ?></td>
+                                    <td><?= htmlspecialchars($order['patient_name']) ?> (#<?= htmlspecialchars($order['patient_code']) ?>)</td>
+                                    <td><strong><?= htmlspecialchars($order['medicine_name']) ?></strong><br><small class="text-muted"><?= htmlspecialchars($order['dosage']) ?></small></td>
+                                    <td><?= (int) $order['quantity'] ?></td>
+                                    <td><span class="badge <?= $order['status'] === 'Ready' ? 'bg-success' : 'bg-warning text-dark' ?>"><?= htmlspecialchars($order['status']) ?></span></td>
+                                    <td class="text-nowrap">
+                                        <?php if ($order['status'] === 'Requested'): ?>
+                                            <form method="POST" action="admin.php" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="action" value="update_pharmacy_order">
+                                                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                                                <input type="hidden" name="status" value="Ready">
+                                                <button type="submit" class="btn btn-sm btn-success">Mark Ready</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <form method="POST" action="admin.php" class="d-inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="action" value="update_pharmacy_order">
+                                                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                                                <input type="hidden" name="status" value="Collected">
+                                                <button type="submit" class="btn btn-sm btn-primary-custom">Mark Collected</button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <form method="POST" action="admin.php" class="d-inline" onsubmit="return confirm('Cancel this medication request?');">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="update_pharmacy_order">
+                                            <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                                            <input type="hidden" name="status" value="Cancelled">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
         <!-- Today's Appointments -->
         <section class="card-custom mb-4" id="appointments-management">
             <div class="card-header-custom">
@@ -601,6 +778,69 @@ function statusBadge(string $status): string {
             </div>
         </section>
     </main>
+
+    <!-- MODAL: Add Prescription -->
+    <div class="modal fade" id="addPrescriptionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content modal-content-custom">
+                <div class="modal-header modal-header-custom">
+                    <h5 class="modal-title manrope-700">Add Medication to a Checkup</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="admin.php">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="add_prescription">
+                    <div class="modal-body p-4">
+                        <p class="text-muted">Only enter medication and instructions prescribed by the attending clinician. Patients can request pharmacy fulfillment until the expiry date.</p>
+                        <div class="mb-3">
+                            <label class="form-label manrope-600">Checkup record</label>
+                            <select name="record_id" class="form-select form-select-custom" required>
+                                <option value="">Choose a patient checkup...</option>
+                                <?php foreach ($prescriptionOptions as $record): ?>
+                                    <option value="<?= (int) $record['id'] ?>">
+                                        <?= htmlspecialchars($record['patient_name']) ?> ? <?= htmlspecialchars($record['title']) ?> (<?= date('d M Y', strtotime($record['record_date'])) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (!$prescriptionOptions): ?>
+                                <small class="text-muted">Create a medical record before adding its prescription.</small>
+                            <?php endif; ?>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Medication name</label>
+                                <input type="text" name="medicine_name" class="form-control form-control-custom" maxlength="150" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Dosage</label>
+                                <input type="text" name="dosage" class="form-control form-control-custom" maxlength="120" placeholder="As prescribed" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Quantity per fulfillment</label>
+                                <input type="number" name="quantity" class="form-control form-control-custom" min="1" max="1000" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Refills allowed</label>
+                                <input type="number" name="refills_allowed" class="form-control form-control-custom" min="0" max="5" value="0" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label manrope-600">Prescription valid until</label>
+                                <input type="date" name="valid_until" class="form-control form-control-custom" min="<?= date('Y-m-d') ?>" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label manrope-600">Directions / instructions</label>
+                                <textarea name="instructions" class="form-control form-control-custom" rows="3" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer modal-footer-custom">
+                        <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary-custom">Save Prescription</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: Add New Medical Record -->
     <div class="modal fade" id="addRecordModal" tabindex="-1" aria-hidden="true">
