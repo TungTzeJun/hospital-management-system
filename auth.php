@@ -49,6 +49,16 @@ function current_role(): ?string {
     return $_SESSION['role'] ?? null;
 }
 
+function dashboard_for_role(?string $role): string {
+    return match ($role) {
+        'patient' => 'index.php',
+        'doctor' => 'admin.php',
+        'admin' => 'admin_directory.php',
+        'pharmacist' => 'pharmacist.php',
+        default => 'login.php',
+    };
+}
+
 // Redirect to login if nobody is logged in.
 function require_login(): void {
     if (!is_logged_in()) {
@@ -63,7 +73,7 @@ function require_login(): void {
 function require_role(array $allowedRoles): void {
     require_login();
     if (!in_array(current_role(), $allowedRoles, true)) {
-        header('Location: ' . (current_role() === 'patient' ? 'index.php' : 'admin.php'));
+        header('Location: ' . dashboard_for_role(current_role()));
         exit;
     }
 }

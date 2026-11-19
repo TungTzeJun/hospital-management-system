@@ -2,26 +2,32 @@
 // ============================================================
 // Live queue status endpoint (JSON) — now PER DEPARTMENT.
 // Polled from the browser (script.js) on both the patient
-// dashboard and every department panel on the admin/doctor
+// dashboard and every department panel on the doctor
 // queue controller, so ticket numbers update in real time
 // without a full page reload.
 // ============================================================
 require_once 'auth.php';
-require_once 'db.php';
-require_once 'queue_helpers.php';
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
-// Any logged-in role (patient, doctor, admin) may poll this —
-// require_login() rather than require_role() so it works on
-// both index.php and admin.php.
+// This endpoint is available only to patients and doctors; admins
+// have no access to queue information or queue controls.
 if (!is_logged_in()) {
     http_response_code(401);
     echo json_encode(['error' => 'Not logged in']);
     exit;
 }
+
+if (!in_array(current_role(), ['patient', 'doctor'], true)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Access denied']);
+    exit;
+}
+
+require_once 'db.php';
+require_once 'queue_helpers.php';
 
 $department = trim($_GET['department'] ?? '');
 

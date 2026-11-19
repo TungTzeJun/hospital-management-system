@@ -10,13 +10,12 @@ $DB_USER = getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'root';
 $DB_PASS = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '';
 
 // ------------------------------------------------------------
-// Staff invite code required on register.php to create a DOCTOR
-// account. Without this, anyone could self-register as staff and
-// get admin.php access to every patient's medical records. Change
-// this to your own secret and share it only with staff you're
-// onboarding (e.g. verbally, not over email).
+// Invite codes required to self-register staff accounts. Set a
+// unique PHARMACIST_INVITE_CODE in the hosting environment before
+// enabling pharmacist registration.
 // ------------------------------------------------------------
 define('DOCTOR_INVITE_CODE', 'healthcore2026');
+define('PHARMACIST_INVITE_CODE', getenv('PHARMACIST_INVITE_CODE') ?: '');
 
 // ------------------------------------------------------------
 // Generate 30-minute appointment slots from 8:30 AM through 8:30 PM.

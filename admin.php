@@ -1,12 +1,19 @@
 <?php
 require_once 'auth.php';
-require_once 'db.php';
-require_once 'queue_helpers.php';
 require_role(['admin', 'doctor']);
 
+if (current_role() === 'admin') {
+    header('Location: admin_directory.php');
+    exit;
+}
+
+require_once 'db.php';
+require_once 'queue_helpers.php';
+require_role(['doctor']);
+
 // -------------------- Department scoping --------------------
-// Admins see the whole hospital. Doctors only see/manage patients,
-// appointments and records tied to their own department — "tied to"
+// Doctors only see/manage patients, appointments and records tied to
+// their own department — "tied to"
 // meaning: the patient's primary physician is in that department, OR
 // they have an appointment with a doctor in that department, OR they
 // already have a record from a doctor in that department.
@@ -55,16 +62,14 @@ function record_in_department(PDO $pdo, int $recordId, string $department): bool
     return (bool) $stmt->fetch();
 }
 
-// -------------------- Handle admin actions (PRG pattern) --------------------
+// -------------------- Handle doctor actions (PRG pattern) --------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $action = $_POST['action'] ?? '';
 
-    // Which department's queue an action targets. A doctor can only ever
-    // act on their own department — the POSTed value is ignored for them
-    // rather than trusted, so editing the hidden form field can't be used
-    // to call/reset another department's queue. An admin's POSTed value
-    // is validated against active_departments() so it has to be a real one.
+    // A doctor can only ever act on their own department — the POSTed value
+    // is ignored rather than trusted, so editing the hidden form field can't
+    // be used to call/reset another department's queue.
     $targetDepartment = trim($_POST['department'] ?? '');
     if ($isDoctor) {
         $targetDepartment = $myDepartment;
@@ -231,33 +236,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'update_pharmacy_order') {
-        if ($isDoctor) {
-            flash('Only pharmacy administrators can update medication order status.', '??');
-        } else {
-            $orderId = (int) ($_POST['order_id'] ?? 0);
-            $newStatus = $_POST['status'] ?? '';
-            $orderStmt = $pdo->prepare('SELECT status FROM pharmacy_orders WHERE id = ?');
-            $orderStmt->execute([$orderId]);
-            $order = $orderStmt->fetch();
-            $allowedTransitions = [
-                'Requested' => ['Ready', 'Cancelled'],
-                'Ready' => ['Collected', 'Cancelled'],
-            ];
-
-            if (!$order || !in_array($newStatus, $allowedTransitions[$order['status']] ?? [], true)) {
-                flash('That medication order can no longer be updated to the selected status.', '??');
-            } else {
-                $update = $pdo->prepare('UPDATE pharmacy_orders SET status = ? WHERE id = ? AND status = ?');
-                $update->execute([$newStatus, $orderId, $order['status']]);
-                flash(
-                    $update->rowCount() ? 'Medication order updated to ' . $newStatus . '.' : 'That medication order was already updated.',
-                    $update->rowCount() ? '?' : '??'
-                );
-            }
-        }
-    }
-
     if ($action === 'verify_record') {
         $id = (int) ($_POST['record_id'] ?? 0);
         if ($isDoctor && !record_in_department($pdo, $id, $myDepartment)) {
@@ -331,8 +309,7 @@ if ($isDoctor) {
 }
 
 // -------------------- Per-department queues --------------------
-// A doctor only ever manages their own department's queue. An admin
-// sees one card per department that currently has a doctor assigned.
+// A doctor only ever manages their own department's queue.
 $queueDepartments = $isDoctor ? [$myDepartment] : active_departments($pdo);
 
 $departmentQueues = [];
@@ -394,21 +371,6 @@ $prescriptionOptionsSql .= ' ORDER BY mr.record_date DESC, mr.id DESC';
 $stmt = $pdo->prepare($prescriptionOptionsSql);
 $stmt->execute($prescriptionOptionsParams);
 $prescriptionOptions = $stmt->fetchAll();
-
-$pharmacyOrders = [];
-if (!$isDoctor) {
-    $pharmacyOrders = $pdo->query(
-        "SELECT po.id, po.quantity, po.status, po.created_at,
-                pr.medicine_name, pr.dosage,
-                p.patient_code, u.full_name AS patient_name
-         FROM pharmacy_orders po
-         JOIN prescriptions pr ON pr.id = po.prescription_id
-         JOIN patients p ON p.id = po.patient_id
-         JOIN users u ON u.id = p.user_id
-         WHERE po.status IN ('Requested', 'Ready')
-         ORDER BY po.created_at ASC"
-    )->fetchAll();
-}
 
 $apptSql = "SELECT a.*, u1.full_name AS patient_name, p.patient_code, u2.full_name AS doctor_name
             FROM appointments a
@@ -560,7 +522,7 @@ function statusBadge(string $status): string {
         <div class="navbar-layout">
             <a class="navbar-brand-custom text-primary d-flex align-items-center gap-2" href="admin.php">
                 <span class="logo-icon bg-primary text-white">+</span>
-                <span>Healthcore <span class="admin-badge ms-1">ADMIN</span></span>
+                <span>Healthcore <span class="admin-badge ms-1">DOCTOR</span></span>
             </a>
 
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
@@ -910,66 +872,6 @@ function statusBadge(string $status): string {
                 </div>
             </div>
         </section>
-
-        <?php if (!$isDoctor): ?>
-        <section class="card-custom mb-4" id="pharmacy-orders">
-            <div class="card-header-custom">
-                <div>
-                    <h5 class="manrope-700 mb-0">Medication Requests</h5>
-                    <small class="text-muted">Review patient requests and update pickup status.</small>
-                </div>
-            </div>
-            <div class="card-body-custom">
-                <div class="records-table-container">
-                    <table class="records-table">
-                        <thead>
-                            <tr><th>Requested</th><th>Patient</th><th>Medication</th><th>Quantity</th><th>Status</th><th>Action</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!$pharmacyOrders): ?>
-                                <tr><td colspan="6" class="text-muted text-center py-3">No medication requests are waiting for action.</td></tr>
-                            <?php endif; ?>
-                            <?php foreach ($pharmacyOrders as $order): ?>
-                                <tr>
-                                    <td><?= date('d M Y, h:i A', strtotime($order['created_at'])) ?></td>
-                                    <td><?= htmlspecialchars($order['patient_name']) ?> (#<?= htmlspecialchars($order['patient_code']) ?>)</td>
-                                    <td><strong><?= htmlspecialchars($order['medicine_name']) ?></strong><br><small class="text-muted"><?= htmlspecialchars($order['dosage']) ?></small></td>
-                                    <td><?= (int) $order['quantity'] ?></td>
-                                    <td><span class="badge <?= $order['status'] === 'Ready' ? 'bg-success' : 'bg-warning text-dark' ?>"><?= htmlspecialchars($order['status']) ?></span></td>
-                                    <td class="text-nowrap">
-                                        <?php if ($order['status'] === 'Requested'): ?>
-                                            <form method="POST" action="admin.php" class="d-inline">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="update_pharmacy_order">
-                                                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                                <input type="hidden" name="status" value="Ready">
-                                                <button type="submit" class="btn btn-sm btn-success">Mark Ready</button>
-                                            </form>
-                                        <?php else: ?>
-                                            <form method="POST" action="admin.php" class="d-inline">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="update_pharmacy_order">
-                                                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                                <input type="hidden" name="status" value="Collected">
-                                                <button type="submit" class="btn btn-sm btn-primary-custom">Mark Collected</button>
-                                            </form>
-                                        <?php endif; ?>
-                                        <form method="POST" action="admin.php" class="d-inline" onsubmit="return confirm('Cancel this medication request?');">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="action" value="update_pharmacy_order">
-                                            <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                            <input type="hidden" name="status" value="Cancelled">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        <?php endif; ?>
 
         <!-- Today's Appointments -->
         <section class="card-custom mb-4" id="appointments-management">

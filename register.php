@@ -3,7 +3,7 @@ require_once 'auth.php';
 require_once 'db.php';
 
 if (is_logged_in()) {
-    header('Location: ' . (current_role() === 'patient' ? 'index.php' : 'admin.php'));
+    header('Location: ' . dashboard_for_role(current_role()));
     exit;
 }
 
@@ -14,7 +14,10 @@ const DEPARTMENTS = [
 ];
 
 $error = null;
-$role  = ($_POST['role'] ?? 'patient') === 'doctor' ? 'doctor' : 'patient';
+$requestedRole = $_POST['role'] ?? 'patient';
+$role = in_array($requestedRole, ['patient', 'doctor', 'pharmacist'], true)
+    ? $requestedRole
+    : 'patient';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -24,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['confirm'] ?? '';
 
-    // Fields only relevant to doctor accounts
+    // Staff account fields
     $department = trim($_POST['department'] ?? '');
     $inviteCode = $_POST['invite_code'] ?? '';
 
@@ -40,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please choose a valid department.';
     } elseif ($role === 'doctor' && !hash_equals(DOCTOR_INVITE_CODE, $inviteCode)) {
         $error = 'Invalid staff invite code. Ask your hospital administrator for the current code.';
+    } elseif ($role === 'pharmacist' && (PHARMACIST_INVITE_CODE === '' || !hash_equals(PHARMACIST_INVITE_CODE, $inviteCode))) {
+        $error = 'Invalid pharmacy invite code. Ask your hospital administrator for the current code.';
     } else {
         $check = $pdo->prepare('SELECT id FROM users WHERE email = ?');
         $check->execute([$email]);
@@ -56,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $doctorCode = 'DR-' . random_int(10000, 99999);
                     $stmt = $pdo->prepare('INSERT INTO doctors (user_id, doctor_code, department) VALUES (?, ?, ?)');
                     $stmt->execute([$userId, $doctorCode, $department]);
-                } else {
+                } elseif ($role === 'patient') {
                     $patientCode = 'HC-' . random_int(10000, 99999);
                     $stmt = $pdo->prepare('INSERT INTO patients (user_id, patient_code) VALUES (?, ?)');
                     $stmt->execute([$userId, $patientCode]);
@@ -108,6 +113,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <input type="radio" class="btn-check" name="roleToggle" id="roleToggle_doctor" autocomplete="off" <?= $role === 'doctor' ? 'checked' : '' ?>>
                 <label class="btn btn-outline-custom" for="roleToggle_doctor">👨‍⚕️ Medical Staff</label>
+
+                <input type="radio" class="btn-check" name="roleToggle" id="roleToggle_pharmacist" autocomplete="off" <?= $role === 'pharmacist' ? 'checked' : '' ?>>
+                <label class="btn btn-outline-custom" for="roleToggle_pharmacist">💊 Pharmacy Staff</label>
             </div>
 
             <form method="POST" action="register.php" id="registerForm">
@@ -130,10 +138,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>">
                 </div>
 
-                <!-- Doctor-only fields -->
+                <!-- Staff-only fields -->
                 <div id="doctorFields" class="border rounded p-3 mb-3" style="display:none;">
-                    <p class="small text-muted mb-3">Medical staff accounts get access to the admin portal (patient records, queue control, appointments) — a staff invite code is required.</p>
-                    <div class="mb-3">
+                    <p class="small text-muted mb-3">Staff access requires an invite code from your hospital administrator.</p>
+                    <div class="mb-3" id="departmentField">
                         <label class="form-label manrope-600">Department</label>
                         <select name="department" id="departmentSelect" class="form-select form-select-custom">
                             <option value="">Choose a department...</option>
@@ -182,26 +190,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             btn.title = isHidden ? 'Hide password' : 'Show password';
         }
 
-        // Toggle between Patient / Medical Staff field sets
+        // Toggle between patient, doctor, and pharmacy staff fields.
         const patientRadio   = document.getElementById('roleToggle_patient');
         const doctorRadio    = document.getElementById('roleToggle_doctor');
+        const pharmacistRadio = document.getElementById('roleToggle_pharmacist');
         const doctorFields   = document.getElementById('doctorFields');
+        const departmentField = document.getElementById('departmentField');
         const roleInput      = document.getElementById('roleInput');
         const departmentSel  = document.getElementById('departmentSelect');
         const inviteCodeIn   = document.getElementById('inviteCodeInput');
 
         function applyRoleView() {
             const isDoctor = doctorRadio.checked;
-            doctorFields.style.display = isDoctor ? 'block' : 'none';
-            roleInput.value = isDoctor ? 'doctor' : 'patient';
-            // Only require doctor-only fields when that panel is visible,
-            // so the hidden inputs don't block submitting as a patient.
+            const isPharmacist = pharmacistRadio.checked;
+            const isStaff = isDoctor || isPharmacist;
+            doctorFields.style.display = isStaff ? 'block' : 'none';
+            departmentField.style.display = isDoctor ? 'block' : 'none';
+            roleInput.value = isDoctor ? 'doctor' : (isPharmacist ? 'pharmacist' : 'patient');
             departmentSel.required = isDoctor;
-            inviteCodeIn.required = isDoctor;
+            inviteCodeIn.required = isStaff;
         }
 
         patientRadio.addEventListener('change', applyRoleView);
         doctorRadio.addEventListener('change', applyRoleView);
+        pharmacistRadio.addEventListener('change', applyRoleView);
         applyRoleView();
     </script>
 </body>

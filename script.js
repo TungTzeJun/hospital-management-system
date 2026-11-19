@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------------------------------------------------
     // Pulls the actual row from `queue_state` (and today's real ticket
     // numbers) via queue_status.php and refreshes every few seconds, on
-    // both the patient dashboard and the admin/doctor queue controller.
+    // both the patient dashboard and the doctor queue controller.
     // Whichever elements exist on the current page get updated; the ones
     // that don't apply (e.g. admin-only IDs on the patient page) are
     // simply skipped.

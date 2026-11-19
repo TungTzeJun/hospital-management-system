@@ -96,18 +96,19 @@ CREATE TABLE pharmacy_orders (
 
 | Email | Role | Lands on |
 |---|---|---|
-| `admin@healthcore.com` | Admin | `admin.php` — full staff dashboard |
+| `admin@healthcore.com` | Admin | `admin_directory.php` — read-only patient and doctor directory |
 | `sarah.lee@healthcore.com` | Doctor | `admin.php` — scoped to her department |
 | `john.doe@example.com` | Patient | `index.php` — patient dashboard |
+| `pharmacy@healthcore.com` | Pharmacist | `pharmacist.php` — medication pickup requests |
 
-New patients can also self-register at `register.php`. Self-registering as a doctor requires the staff invite code set in `db.php` (`DOCTOR_INVITE_CODE`).
+New patients can self-register at `register.php`. Doctor registration requires `DOCTOR_INVITE_CODE`; pharmacist registration requires the `PHARMACIST_INVITE_CODE` environment variable to be configured and the matching invite code.
 
 ### 🎬 Suggested walkthrough (~2 min)
 
 1. Log in as **patient** → book an appointment → watch the live "waiting" queue widget.
-2. Log out, log in as **doctor/admin** → add a checkup record and its structured prescription.
+2. Log out, log in as **doctor** → add a checkup record and its structured prescription.
 3. Log back in as **patient** → request fulfillment from the Pharmacy section and track its status.
-4. As **admin**, mark the request ready for pickup and then collected. The patient's queue widget also updates within 5 seconds without a page refresh.
+4. As **pharmacist**, mark the request ready for pickup and then collected. The patient's request status updates on refresh.
 
 Pharmacy requests use only clinician-entered prescriptions linked to a checkup. They are internal pickup requests; the portal does not process payment, delivery, or external pharmacy transactions.
 
@@ -129,7 +130,9 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `export_records.php` | Authenticated patient download of all medical records as a PDF |
 | `profile.php` | Patient profile |
 | `settings.php` | Notification preferences and password change |
-| `admin.php` | Staff/admin dashboard — appointments, queue control, records, prescription entry, pharmacy requests, and admin patient directory |
+| `admin.php` | Doctor dashboard — department appointments, queue control, and clinical records/prescriptions |
+| `admin_directory.php` | Read-only admin directory — hospital-wide patient history and doctor contact information |
+| `pharmacist.php` | Pharmacy staff dashboard — medication pickup request status only |
 | `get_slots.php` | AJAX: which appointment slots are free for a doctor/date |
 | `queue_status.php` | AJAX: live per-department queue numbers (polled every 5s) |
 | `queue_helpers.php` | Shared queue read/write logic used by every page |
@@ -143,15 +146,27 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 
 ## 🔐 How the login/role system works
 
-- One `users` table with a `role` column (`patient`, `doctor`, `admin`); `patients` and `doctors` tables hold role-specific fields linked via `user_id`.
+- One `users` table with a `role` column (`patient`, `doctor`, `admin`, `pharmacist`); `patients` and `doctors` tables hold role-specific fields linked via `user_id`.
 - `auth.php`'s `require_role([...])` guards every protected page — wrong role bounces you to your own dashboard, logged-out bounces you to `login.php`.
 - Passwords use PHP's `password_hash()` / `password_verify()` — never stored in plain text.
-- Admin accounts can search the hospital-wide patient directory from the staff dashboard to view profiles, appointments, checkups, allergies, conditions, prescriptions, and pharmacy request history. Doctor accounts remain limited to their department and do not see the directory.
-- Every data-changing form (login, register, book/cancel, pharmacy requests, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
+- Admin accounts are redirected to `admin_directory.php`, a read-only view of patient profiles and history plus doctor contact/department information. Admins cannot access the staff dashboard or queue endpoint, or submit queue, appointment, clinical-record, or pharmacy actions; these restrictions are enforced server-side.
+- Doctor accounts use `admin.php` for department-scoped clinical and queue tasks and do not see the hospital-wide directory. Pharmacists use `pharmacist.php` to update medication pickup statuses and have no queue or clinical-record controls.
+- Every data-changing form (login, register, book/cancel, pharmacy requests, profile, settings, and staff actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
 - The session cookie is `HttpOnly` + `SameSite=Lax`. Once served over HTTPS, uncomment `'secure' => true` in `auth.php`'s `session_set_cookie_params()`.
 - Ticket numbers start at #1 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
 - Queue tickets display a department prefix and a number padded to at least two digits (for example, `GM01` for General Medicine and `N01` for Neurology); the database retains numeric ticket values for ordering.
 - Patient wait estimates recalculate on each live queue poll using unserved tickets ahead and the current called ticket's remaining service time. Called tickets that have already been passed are no longer counted; queue-status responses are not cached.
+
+### Adding pharmacist access to an existing database
+
+Back up the database, then run this single statement in its SQL console. It modifies the allowed user roles and preserves existing rows:
+
+```sql
+ALTER TABLE users
+MODIFY role ENUM('patient','doctor','admin','pharmacist') NOT NULL DEFAULT 'patient';
+```
+
+Set a `PHARMACIST_INVITE_CODE` environment variable in the PHP hosting service before inviting pharmacy staff to register. Without it, pharmacist self-registration is disabled.
 
 ---
 

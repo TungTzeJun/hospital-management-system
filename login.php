@@ -4,7 +4,7 @@ require_once 'db.php';
 
 // If already logged in, skip straight to the right dashboard.
 if (is_logged_in()) {
-    header('Location: ' . (current_role() === 'patient' ? 'index.php' : 'admin.php'));
+    header('Location: ' . dashboard_for_role(current_role()));
     exit;
 }
 
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['full_name'] = $user['full_name'];
 
             flash('Welcome back, ' . explode(' ', $user['full_name'])[0] . '!', '👋');
-            header('Location: ' . ($user['role'] === 'patient' ? 'index.php' : 'admin.php'));
+            header('Location: ' . dashboard_for_role($user['role']));
             exit;
         } else {
             $error = 'Incorrect email or password.';

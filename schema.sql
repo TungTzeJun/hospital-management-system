@@ -223,7 +223,7 @@ INSERT INTO `queue_state` (`id`, `department`, `currently_serving`, `updated_at`
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
-  `role` enum('patient','doctor','admin') NOT NULL DEFAULT 'patient',
+  `role` enum('patient','doctor','admin','pharmacist') NOT NULL DEFAULT 'patient',
   `full_name` varchar(120) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -238,7 +238,8 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `role`, `full_name`, `email`, `password`, `phone`, `created_at`) VALUES
 (1, 'admin', 'Staff Admin', 'admin@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0001', '2026-08-05 01:10:51'),
 (2, 'doctor', 'Dr. Sarah Lee', 'sarah.lee@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0002', '2026-08-05 01:10:51'),
-(3, 'patient', 'John Doe', 'john.doe@example.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 234-5678', '2026-08-05 01:10:51');
+(3, 'patient', 'John Doe', 'john.doe@example.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 234-5678', '2026-08-05 01:10:51'),
+(4, 'pharmacist', 'Morgan Lee', 'pharmacy@healthcore.com', '$2y$10$WC2hYDil9KBNkXjhsI9wZ.OzrlcMKjpp9ESnRKIuGqL2hakIT5VzC', '+1 (555) 000-0003', '2026-08-05 01:10:51');
 
 --
 -- Indexes for dumped tables
