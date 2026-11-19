@@ -451,6 +451,86 @@ if ($isDoctor) {
     $doctorsList  = $pdo->query("SELECT d.id, d.department, u.full_name FROM doctors d JOIN users u ON u.id = d.user_id ORDER BY u.full_name")->fetchAll();
 }
 
+$patientDirectory = [];
+if (!$isDoctor) {
+    $directoryPatients = $pdo->query(
+        'SELECT p.*, u.full_name, u.email, u.phone, u.created_at AS account_created_at,
+                pd.department AS primary_doctor_department, du.full_name AS primary_doctor_name
+         FROM patients p
+         JOIN users u ON u.id = p.user_id
+         LEFT JOIN doctors pd ON pd.id = p.primary_doctor_id
+         LEFT JOIN users du ON du.id = pd.user_id
+         ORDER BY u.full_name'
+    )->fetchAll();
+
+    foreach ($directoryPatients as $directoryPatient) {
+        $directoryPatient['appointments'] = [];
+        $directoryPatient['records'] = [];
+        $directoryPatient['allergies'] = [];
+        $directoryPatient['conditions'] = [];
+        $directoryPatient['prescriptions'] = [];
+        $patientDirectory[(int) $directoryPatient['id']] = $directoryPatient;
+    }
+
+    $directoryAppointments = $pdo->query(
+        'SELECT a.patient_id, a.appt_date, a.appt_time, a.department, a.reason,
+                a.status, a.ticket_number, u.full_name AS doctor_name
+         FROM appointments a
+         JOIN doctors d ON d.id = a.doctor_id
+         JOIN users u ON u.id = d.user_id
+         ORDER BY a.appt_date DESC, a.appt_time DESC, a.id DESC'
+    )->fetchAll();
+    foreach ($directoryAppointments as $appointment) {
+        $patientDirectory[(int) $appointment['patient_id']]['appointments'][] = $appointment;
+    }
+
+    $directoryRecords = $pdo->query(
+        'SELECT mr.patient_id, mr.title, mr.notes, mr.record_date, mr.status,
+                u.full_name AS doctor_name, d.department
+         FROM medical_records mr
+         JOIN doctors d ON d.id = mr.doctor_id
+         JOIN users u ON u.id = d.user_id
+         ORDER BY mr.record_date DESC, mr.id DESC'
+    )->fetchAll();
+    foreach ($directoryRecords as $record) {
+        $patientDirectory[(int) $record['patient_id']]['records'][] = $record;
+    }
+
+    foreach ($pdo->query('SELECT patient_id, name, severity FROM allergies ORDER BY name')->fetchAll() as $allergy) {
+        $patientDirectory[(int) $allergy['patient_id']]['allergies'][] = $allergy;
+    }
+
+    foreach ($pdo->query('SELECT patient_id, name FROM conditions ORDER BY name')->fetchAll() as $condition) {
+        $patientDirectory[(int) $condition['patient_id']]['conditions'][] = $condition;
+    }
+
+    $directoryPrescriptions = $pdo->query(
+        'SELECT pr.id, pr.patient_id, pr.medicine_name, pr.dosage, pr.instructions,
+                pr.quantity, pr.refills_allowed, pr.valid_until, pr.created_at,
+                mr.title AS record_title, mr.record_date, d.department,
+                du.full_name AS doctor_name, po.id AS order_id, po.quantity AS order_quantity,
+                po.status AS order_status, po.created_at AS order_created_at
+         FROM prescriptions pr
+         JOIN medical_records mr ON mr.id = pr.medical_record_id AND mr.patient_id = pr.patient_id
+         JOIN doctors d ON d.id = pr.doctor_id AND d.id = mr.doctor_id
+         JOIN users du ON du.id = d.user_id
+         LEFT JOIN pharmacy_orders po ON po.prescription_id = pr.id AND po.patient_id = pr.patient_id
+         ORDER BY pr.created_at DESC, pr.id DESC, po.id DESC'
+    )->fetchAll();
+    foreach ($directoryPrescriptions as $prescriptionRow) {
+        $directoryPatientId = (int) $prescriptionRow['patient_id'];
+        $prescriptionId = (int) $prescriptionRow['id'];
+        if (!isset($patientDirectory[$directoryPatientId]['prescriptions'][$prescriptionId])) {
+            $prescriptionDirectoryItem = $prescriptionRow;
+            $prescriptionDirectoryItem['orders'] = [];
+            $patientDirectory[$directoryPatientId]['prescriptions'][$prescriptionId] = $prescriptionDirectoryItem;
+        }
+        if ($prescriptionRow['order_id'] !== null) {
+            $patientDirectory[$directoryPatientId]['prescriptions'][$prescriptionId]['orders'][] = $prescriptionRow;
+        }
+    }
+}
+
 function statusBadge(string $status): string {
     return match ($status) {
         'Verified', 'Completed', 'Confirmed' => 'bg-success',
@@ -490,6 +570,9 @@ function statusBadge(string $status): string {
             <div class="collapse navbar-collapse justify-content-center" id="adminNavbar">
                 <ul class="navbar-nav gap-2">
                     <li class="nav-item"><a class="nav-link nav-link-custom active" href="admin.php">Overview</a></li>
+                    <?php if (!$isDoctor): ?>
+                        <li class="nav-item"><a class="nav-link nav-link-custom" href="#patient-directory">All Patients</a></li>
+                    <?php endif; ?>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="#records-management">Patient Records</a></li>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="#queue-controller">Queue Control</a></li>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="#appointments-management">Appointments</a></li>
@@ -545,6 +628,161 @@ function statusBadge(string $status): string {
                 </div>
             </div>
         </div>
+
+        <?php if (!$isDoctor): ?>
+        <section class="card-custom mb-4" id="patient-directory">
+            <div class="card-header-custom flex-wrap gap-2">
+                <div>
+                    <h5 class="manrope-700 mb-0">All Registered Patients</h5>
+                    <small class="text-muted">Hospital-wide patient profiles and their appointments, checkups, allergies, conditions, prescriptions, and pharmacy requests.</small>
+                </div>
+                <input type="search" class="form-control form-control-custom table-search-bar" id="patientDirectorySearch" placeholder="Search any patient detail...">
+            </div>
+            <div class="card-body-custom">
+                <?php if (!$patientDirectory): ?>
+                    <p class="text-muted text-center py-3 mb-0">No registered patients were found.</p>
+                <?php else: ?>
+                    <div id="patientDirectoryEntries">
+                        <?php foreach ($patientDirectory as $directoryPatient): ?>
+                            <details class="patient-directory-entry">
+                                <summary class="patient-directory-summary">
+                                    <span>
+                                        <strong><?= htmlspecialchars($directoryPatient['full_name']) ?></strong>
+                                        <small class="text-muted d-block">Patient #<?= htmlspecialchars($directoryPatient['patient_code']) ?> · <?= htmlspecialchars($directoryPatient['email']) ?></small>
+                                    </span>
+                                    <span class="text-muted small"><?= htmlspecialchars($directoryPatient['phone'] ?: 'No phone on file') ?></span>
+                                </summary>
+                                <div class="patient-directory-content">
+                                    <h6 class="manrope-700">Profile</h6>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-4"><small class="text-muted d-block">Account created</small><?= date('d M Y', strtotime($directoryPatient['account_created_at'])) ?></div>
+                                        <div class="col-md-4"><small class="text-muted d-block">Date of birth</small><?= htmlspecialchars($directoryPatient['dob'] ?: '—') ?></div>
+                                        <div class="col-md-4"><small class="text-muted d-block">Gender</small><?= htmlspecialchars($directoryPatient['gender'] ?: '—') ?></div>
+                                        <div class="col-md-4"><small class="text-muted d-block">Blood type</small><?= htmlspecialchars($directoryPatient['blood_type'] ?: '—') ?></div>
+                                        <div class="col-md-4"><small class="text-muted d-block">Height / weight</small><?= htmlspecialchars(($directoryPatient['height_cm'] ? $directoryPatient['height_cm'] . ' cm' : '—') . ' / ' . ($directoryPatient['weight_kg'] ? $directoryPatient['weight_kg'] . ' kg' : '—')) ?></div>
+                                        <div class="col-md-4"><small class="text-muted d-block">Primary physician</small><?= htmlspecialchars($directoryPatient['primary_doctor_name'] ?: 'Not assigned') ?><?= $directoryPatient['primary_doctor_department'] ? ' · ' . htmlspecialchars($directoryPatient['primary_doctor_department']) : '' ?></div>
+                                        <div class="col-md-6"><small class="text-muted d-block">Address</small><?= nl2br(htmlspecialchars($directoryPatient['address'] ?: '—')) ?></div>
+                                        <div class="col-md-6"><small class="text-muted d-block">Emergency contact</small><?= htmlspecialchars($directoryPatient['emergency_name'] ?: '—') ?><?= $directoryPatient['emergency_phone'] ? ' · ' . htmlspecialchars($directoryPatient['emergency_phone']) : '' ?></div>
+                                        <div class="col-md-6"><small class="text-muted d-block">Insurance provider</small><?= htmlspecialchars($directoryPatient['insurance_provider'] ?: '—') ?></div>
+                                        <div class="col-md-6"><small class="text-muted d-block">Insurance policy number</small><?= htmlspecialchars($directoryPatient['insurance_policy_no'] ?: '—') ?></div>
+                                    </div>
+
+                                    <div class="row g-4">
+                                        <div class="col-lg-6">
+                                            <h6 class="manrope-700">Allergies</h6>
+                                            <?php if (!$directoryPatient['allergies']): ?>
+                                                <p class="text-muted small">None recorded.</p>
+                                            <?php else: ?>
+                                                <ul class="mb-3">
+                                                    <?php foreach ($directoryPatient['allergies'] as $allergy): ?>
+                                                        <li><?= htmlspecialchars($allergy['name']) ?> — <?= htmlspecialchars($allergy['severity'] ?: 'Mild') ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <h6 class="manrope-700">Medical conditions</h6>
+                                            <?php if (!$directoryPatient['conditions']): ?>
+                                                <p class="text-muted small">None recorded.</p>
+                                            <?php else: ?>
+                                                <ul class="mb-3">
+                                                    <?php foreach ($directoryPatient['conditions'] as $condition): ?>
+                                                        <li><?= htmlspecialchars($condition['name']) ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <h6 class="manrope-700">Appointments</h6>
+                                            <?php if (!$directoryPatient['appointments']): ?>
+                                                <p class="text-muted small">No appointments recorded.</p>
+                                            <?php else: ?>
+                                                <div class="records-table-container">
+                                                    <table class="records-table">
+                                                        <thead><tr><th>Date / time</th><th>Department</th><th>Physician</th><th>Status</th><th>Reason</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($directoryPatient['appointments'] as $appointment): ?>
+                                                                <tr>
+                                                                    <td><?= date('d M Y', strtotime($appointment['appt_date'])) ?> · <?= htmlspecialchars($appointment['appt_time']) ?></td>
+                                                                    <td><?= htmlspecialchars($appointment['department']) ?></td>
+                                                                    <td><?= htmlspecialchars($appointment['doctor_name']) ?></td>
+                                                                    <td><?= htmlspecialchars($appointment['status']) ?><?= $appointment['ticket_number'] !== null ? ' · Ticket ' . (int) $appointment['ticket_number'] : '' ?></td>
+                                                                    <td><?= htmlspecialchars($appointment['reason'] ?: '—') ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <h6 class="manrope-700">Checkups and medical records</h6>
+                                            <?php if (!$directoryPatient['records']): ?>
+                                                <p class="text-muted small">No checkups or records recorded.</p>
+                                            <?php else: ?>
+                                                <div class="records-table-container">
+                                                    <table class="records-table">
+                                                        <thead><tr><th>Date</th><th>Record</th><th>Department / physician</th><th>Status</th><th>Notes</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($directoryPatient['records'] as $record): ?>
+                                                                <tr>
+                                                                    <td><?= date('d M Y', strtotime($record['record_date'])) ?></td>
+                                                                    <td><?= htmlspecialchars($record['title']) ?></td>
+                                                                    <td><?= htmlspecialchars($record['department']) ?> · <?= htmlspecialchars($record['doctor_name']) ?></td>
+                                                                    <td><?= htmlspecialchars($record['status']) ?></td>
+                                                                    <td><?= nl2br(htmlspecialchars($record['notes'] ?: '—')) ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <h6 class="manrope-700">Prescriptions and pharmacy requests</h6>
+                                            <?php if (!$directoryPatient['prescriptions']): ?>
+                                                <p class="text-muted small">No prescriptions recorded.</p>
+                                            <?php else: ?>
+                                                <div class="records-table-container">
+                                                    <table class="records-table">
+                                                        <thead><tr><th>Medication</th><th>Checkup</th><th>Directions</th><th>Quantity / refills</th><th>Valid until</th><th>Pharmacy requests</th></tr></thead>
+                                                        <tbody>
+                                                            <?php foreach ($directoryPatient['prescriptions'] as $prescription): ?>
+                                                                <tr>
+                                                                    <td><strong><?= htmlspecialchars($prescription['medicine_name']) ?></strong><br><?= htmlspecialchars($prescription['dosage']) ?></td>
+                                                                    <td><?= htmlspecialchars($prescription['record_title']) ?><br><small class="text-muted"><?= date('d M Y', strtotime($prescription['record_date'])) ?> · <?= htmlspecialchars($prescription['doctor_name']) ?></small></td>
+                                                                    <td><?= nl2br(htmlspecialchars($prescription['instructions'])) ?></td>
+                                                                    <td><?= (int) $prescription['quantity'] ?> · <?= (int) $prescription['refills_allowed'] ?> refills</td>
+                                                                    <td><?= date('d M Y', strtotime($prescription['valid_until'])) ?></td>
+                                                                    <td>
+                                                                        <?php if (!$prescription['orders']): ?>
+                                                                            <span class="text-muted">No request</span>
+                                                                        <?php else: ?>
+                                                                            <?php foreach ($prescription['orders'] as $medicationOrder): ?>
+                                                                                <div><?= htmlspecialchars($medicationOrder['order_status']) ?> — <?= (int) $medicationOrder['order_quantity'] ?> — <?= date('d M Y', strtotime($medicationOrder['order_created_at'])) ?></div>
+                                                                            <?php endforeach; ?>
+                                                                        <?php endif; ?>
+                                                                    </td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="text-muted text-center py-3 mb-0 d-none" id="patientDirectoryNoResults">No patients match that search.</p>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <!-- Live Queue Controller — one card per department -->
         <section class="card-custom mb-4" id="queue-controller">

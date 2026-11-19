@@ -643,6 +643,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (adminRecordSearch) adminRecordSearch.addEventListener('input', applyAdminRecordFilters);
     if (adminStatusFilter) adminStatusFilter.addEventListener('change', applyAdminRecordFilters);
 
+    const patientDirectorySearch = document.getElementById('patientDirectorySearch');
+    const patientDirectoryNoResults = document.getElementById('patientDirectoryNoResults');
+    if (patientDirectorySearch) {
+        patientDirectorySearch.addEventListener('input', () => {
+            const query = patientDirectorySearch.value.trim().toLowerCase();
+            const entries = document.querySelectorAll('.patient-directory-entry');
+            let visibleCount = 0;
+
+            entries.forEach(entry => {
+                const matches = entry.textContent.toLowerCase().includes(query);
+                entry.hidden = !matches;
+                if (matches) visibleCount++;
+            });
+
+            if (patientDirectoryNoResults) {
+                patientDirectoryNoResults.classList.toggle('d-none', visibleCount > 0);
+            }
+        });
+    }
+
     // View Medical Record modal
     document.querySelectorAll('.view-record-btn').forEach(btn => {
         btn.addEventListener('click', () => {

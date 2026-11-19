@@ -129,7 +129,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `export_records.php` | Authenticated patient download of all medical records as a PDF |
 | `profile.php` | Patient profile |
 | `settings.php` | Notification preferences and password change |
-| `admin.php` | Staff/admin dashboard — appointments, queue control, records, prescription entry, pharmacy order status |
+| `admin.php` | Staff/admin dashboard — appointments, queue control, records, prescription entry, pharmacy requests, and admin patient directory |
 | `get_slots.php` | AJAX: which appointment slots are free for a doctor/date |
 | `queue_status.php` | AJAX: live per-department queue numbers (polled every 5s) |
 | `queue_helpers.php` | Shared queue read/write logic used by every page |
@@ -146,6 +146,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 - One `users` table with a `role` column (`patient`, `doctor`, `admin`); `patients` and `doctors` tables hold role-specific fields linked via `user_id`.
 - `auth.php`'s `require_role([...])` guards every protected page — wrong role bounces you to your own dashboard, logged-out bounces you to `login.php`.
 - Passwords use PHP's `password_hash()` / `password_verify()` — never stored in plain text.
+- Admin accounts can search the hospital-wide patient directory from the staff dashboard to view profiles, appointments, checkups, allergies, conditions, prescriptions, and pharmacy request history. Doctor accounts remain limited to their department and do not see the directory.
 - Every data-changing form (login, register, book/cancel, pharmacy requests, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
 - The session cookie is `HttpOnly` + `SameSite=Lax`. Once served over HTTPS, uncomment `'secure' => true` in `auth.php`'s `session_set_cookie_params()`.
 - Ticket numbers start at #1 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
