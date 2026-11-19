@@ -88,6 +88,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cance
     exit;
 }
 
+// Handle: Request medication fulfillment from an active prescription
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'request_medication') {
+    verify_csrf();
+    $prescriptionId = (int) ($_POST['prescription_id'] ?? 0);
+    $pdo->beginTransaction();
+    try {
+        $prescriptionStmt = $pdo->prepare(
+            'SELECT id, quantity, refills_allowed
+             FROM prescriptions
+             WHERE id = ? AND patient_id = ? AND valid_until >= CURDATE()
+             FOR UPDATE'
+        );
+        $prescriptionStmt->execute([$prescriptionId, $patientId]);
+        $prescription = $prescriptionStmt->fetch();
+
+        if (!$prescription) {
+            $pdo->rollBack();
+            flash('This prescription is unavailable or has expired.', '⚠️');
+        } else {
+            $ordersStmt = $pdo->prepare(
+                "SELECT status FROM pharmacy_orders
+                 WHERE prescription_id = ? AND patient_id = ? AND status != 'Cancelled'"
+            );
+            $ordersStmt->execute([$prescriptionId, $patientId]);
+            $existingOrders = $ordersStmt->fetchAll();
+            $hasOpenOrder = false;
+            foreach ($existingOrders as $existingOrder) {
+                if (in_array($existingOrder['status'], ['Requested', 'Ready'], true)) {
+                    $hasOpenOrder = true;
+                    break;
+                }
+            }
+
+            if ($hasOpenOrder) {
+                $pdo->rollBack();
+                flash('There is already an open pharmacy request for this prescription.', '⚠️');
+            } elseif (count($existingOrders) >= (int) $prescription['refills_allowed'] + 1) {
+                $pdo->rollBack();
+                flash('No fulfillments remain for this prescription.', '⚠️');
+            } else {
+                $pdo->prepare(
+                    'INSERT INTO pharmacy_orders (prescription_id, patient_id, quantity, status)
+                     VALUES (?, ?, ?, "Requested")'
+                )->execute([$prescriptionId, $patientId, $prescription['quantity']]);
+                $pdo->commit();
+                flash('Medication request sent to the pharmacy.', '💊');
+            }
+        }
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Medication request failed: ' . $e->getMessage());
+        flash('Unable to request this medication right now. Please try again.', '⚠️');
+    }
+
+    header('Location: index.php#pharmacy-section');
+    exit;
+}
+
+// Handle: Cancel a pharmacy request before it is prepared
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_medication_request') {
+    verify_csrf();
+    $orderId = (int) ($_POST['order_id'] ?? 0);
+    $cancel = $pdo->prepare(
+        'UPDATE pharmacy_orders SET status = "Cancelled"
+         WHERE id = ? AND patient_id = ? AND status = "Requested"'
+    );
+    $cancel->execute([$orderId, $patientId]);
+    flash(
+        $cancel->rowCount() ? 'Medication request cancelled.' : 'Only a request not yet prepared can be cancelled.',
+        $cancel->rowCount() ? '✅' : '⚠️'
+    );
+    header('Location: index.php#pharmacy-section');
+    exit;
+}
+
 // Next upcoming appointment (soonest confirmed/pending one from today onward)
 $stmt = $pdo->prepare("SELECT a.*, u.full_name AS doctor_name, d.department AS doctor_department FROM appointments a
                         JOIN doctors d ON d.id = a.doctor_id
@@ -129,6 +206,31 @@ $stmt = $pdo->prepare("SELECT mr.*, u.full_name AS doctor_name FROM medical_reco
 $stmt->execute([$patientId]);
 $records = $stmt->fetchAll();
 
+// Structured prescriptions link directly to the checkup that authorized them.
+$stmt = $pdo->prepare(
+    "SELECT pr.*, mr.title AS record_title, mr.record_date, u.full_name AS doctor_name,
+            (SELECT po.status FROM pharmacy_orders po
+             WHERE po.prescription_id = pr.id AND po.patient_id = pr.patient_id
+             ORDER BY po.id DESC LIMIT 1) AS latest_order_status,
+            (SELECT po.id FROM pharmacy_orders po
+             WHERE po.prescription_id = pr.id AND po.patient_id = pr.patient_id
+             ORDER BY po.id DESC LIMIT 1) AS latest_order_id,
+            (SELECT COUNT(*) FROM pharmacy_orders po
+             WHERE po.prescription_id = pr.id AND po.patient_id = pr.patient_id
+               AND po.status != 'Cancelled') AS fulfillment_count,
+            (SELECT COUNT(*) FROM pharmacy_orders po
+             WHERE po.prescription_id = pr.id AND po.patient_id = pr.patient_id
+               AND po.status IN ('Requested', 'Ready')) AS open_order_count
+     FROM prescriptions pr
+     JOIN medical_records mr ON mr.id = pr.medical_record_id
+     JOIN doctors d ON d.id = pr.doctor_id
+     JOIN users u ON u.id = d.user_id
+     WHERE pr.patient_id = ?
+     ORDER BY pr.created_at DESC, pr.id DESC"
+);
+$stmt->execute([$patientId]);
+$prescriptions = $stmt->fetchAll();
+
 // All doctors, for the "book appointment" dropdown
 $doctors = $pdo->query("SELECT d.id, u.full_name, d.department FROM doctors d JOIN users u ON u.id = d.user_id")->fetchAll();
 
@@ -163,6 +265,7 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                     <li class="nav-item"><a class="nav-link nav-link-custom active" href="index.php">Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="index.php#appointments-section">Appointments</a></li>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="index.php#queue-section">Waiting Status</a></li>
+                    <li class="nav-item"><a class="nav-link nav-link-custom" href="index.php#pharmacy-section">Pharmacy</a></li>
                     <li class="nav-item"><a class="nav-link nav-link-custom" href="index.php#records-section">Medical Records</a></li>
                 </ul>
             </div>
@@ -214,6 +317,11 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                 <span class="action-icon">📄</span>
                 <strong class="d-block manrope-700">Lab Results</strong>
                 <small class="text-muted">View recent reports</small>
+            </a>
+            <a href="#pharmacy-section" class="action-tile">
+                <span class="action-icon">💊</span>
+                <strong class="d-block manrope-700">Pharmacy</strong>
+                <small class="text-muted">Request prescribed medicine</small>
             </a>
         </div>
 
@@ -296,6 +404,89 @@ $initial = strtoupper(substr($_SESSION['full_name'], 0, 1));
                 </div>
             </div>
         </div>
+
+        <!-- Pharmacy -->
+        <section class="card-custom mb-4" id="pharmacy-section">
+            <div class="card-header-custom">
+                <div>
+                    <h5 class="manrope-700 mb-0">Pharmacy & Prescribed Medication</h5>
+                    <small class="text-muted">Medication listed here was prescribed by your clinician during a checkup.</small>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <div class="records-table-container">
+                    <table class="records-table">
+                        <thead>
+                            <tr><th>Medication</th><th>Checkup</th><th>Directions</th><th>Quantity & Refills</th><th>Prescription / Request</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$prescriptions): ?>
+                                <tr><td colspan="6" class="text-muted text-center py-3">No medication has been prescribed in your checkups yet.</td></tr>
+                            <?php endif; ?>
+                            <?php foreach ($prescriptions as $prescription): ?>
+                                <?php
+                                $isExpired = $prescription['valid_until'] < $today;
+                                $orderOpen = (int) $prescription['open_order_count'] > 0;
+                                $remainingFills = (int) $prescription['refills_allowed'] + 1 - (int) $prescription['fulfillment_count'];
+                                $canRequest = !$isExpired && !$orderOpen && $remainingFills > 0;
+                                ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars($prescription['medicine_name']) ?></strong><br>
+                                        <small class="text-muted"><?= htmlspecialchars($prescription['dosage']) ?></small>
+                                    </td>
+                                    <td>
+                                        <?= htmlspecialchars($prescription['record_title']) ?><br>
+                                        <small class="text-muted"><?= date('d M Y', strtotime($prescription['record_date'])) ?> · <?= htmlspecialchars($prescription['doctor_name']) ?></small>
+                                    </td>
+                                    <td><?= nl2br(htmlspecialchars($prescription['instructions'])) ?></td>
+                                    <td>
+                                        <?= (int) $prescription['quantity'] ?> per fulfillment<br>
+                                        <small class="text-muted"><?= max(0, $remainingFills) ?> fulfillment<?= $remainingFills === 1 ? '' : 's' ?> remaining</small>
+                                    </td>
+                                    <td>
+                                        <?php if ($isExpired): ?>
+                                            <span class="badge bg-secondary">Expired</span>
+                                        <?php elseif ($prescription['latest_order_status']): ?>
+                                            <span class="badge <?= $prescription['latest_order_status'] === 'Collected' ? 'bg-success' : ($prescription['latest_order_status'] === 'Cancelled' ? 'bg-secondary' : 'bg-warning text-dark') ?>">
+                                                <?= htmlspecialchars($prescription['latest_order_status']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-primary">Available</span>
+                                        <?php endif; ?>
+                                        <br><small class="text-muted">Valid until <?= date('d M Y', strtotime($prescription['valid_until'])) ?></small>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <?php if ($canRequest): ?>
+                                            <form method="POST" action="index.php">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="action" value="request_medication">
+                                                <input type="hidden" name="prescription_id" value="<?= (int) $prescription['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-primary-custom">Request medicine</button>
+                                            </form>
+                                        <?php elseif ($orderOpen && $prescription['latest_order_status'] === 'Requested'): ?>
+                                            <form method="POST" action="index.php" onsubmit="return confirm('Cancel this pharmacy request?');">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="action" value="cancel_medication_request">
+                                                <input type="hidden" name="order_id" value="<?= (int) $prescription['latest_order_id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel request</button>
+                                            </form>
+                                        <?php elseif ($orderOpen): ?>
+                                            <span class="text-muted small">Preparing for pickup</span>
+                                        <?php elseif ($isExpired): ?>
+                                            <span class="text-muted small">Contact your clinician</span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">No fulfillments left</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small mt-3 mb-0">A pharmacy request is not a payment or delivery order. Please follow your clinician's directions and contact the pharmacy for pickup arrangements.</p>
+            </div>
+        </section>
 
         <!-- Medical Records -->
         <section class="card-custom mb-4" id="records-section">

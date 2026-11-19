@@ -51,6 +51,47 @@ SET qs.currently_serving = COALESCE(called.ticket_number, -1);
 
 After this migration, tickets are numbered from #1 for each department and day. Each doctor's/admin's **Call Next** action marks only the next waiting appointment as `Called`; that patient sees the call on their dashboard and is removed from the waiting count. The live serving number is read from today's `Called` appointments, so an old counter cannot carry over after midnight. New ticket allocation is serialized per department to avoid duplicate numbers when bookings happen at the same time.
 
+### Adding the pharmacy feature to an existing database
+
+Back up the database, then run this once in its SQL console. Fresh installs already get these tables from `schema.sql`.
+
+```sql
+CREATE TABLE prescriptions (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    medical_record_id INT NOT NULL,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    medicine_name VARCHAR(150) NOT NULL,
+    dosage VARCHAR(120) NOT NULL,
+    instructions TEXT NOT NULL,
+    quantity INT NOT NULL,
+    refills_allowed INT NOT NULL DEFAULT 0,
+    valid_until DATE NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY medical_record_id (medical_record_id),
+    KEY patient_id (patient_id),
+    KEY doctor_id (doctor_id),
+    CONSTRAINT prescriptions_ibfk_1 FOREIGN KEY (medical_record_id) REFERENCES medical_records (id) ON DELETE CASCADE,
+    CONSTRAINT prescriptions_ibfk_2 FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE,
+    CONSTRAINT prescriptions_ibfk_3 FOREIGN KEY (doctor_id) REFERENCES doctors (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE pharmacy_orders (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    prescription_id INT NOT NULL,
+    patient_id INT NOT NULL,
+    quantity INT NOT NULL,
+    status ENUM('Requested','Ready','Collected','Cancelled') NOT NULL DEFAULT 'Requested',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY prescription_id (prescription_id),
+    KEY patient_id (patient_id),
+    KEY status (status),
+    CONSTRAINT pharmacy_orders_ibfk_1 FOREIGN KEY (prescription_id) REFERENCES prescriptions (id) ON DELETE CASCADE,
+    CONSTRAINT pharmacy_orders_ibfk_2 FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
 ### Demo accounts (password: `password123` for all demo accounts)
 
 | Email | Role | Lands on |
@@ -64,8 +105,11 @@ New patients can also self-register at `register.php`. Self-registering as a doc
 ### 🎬 Suggested walkthrough (~2 min)
 
 1. Log in as **patient** → book an appointment → watch the live "waiting" queue widget.
-2. Log out, log in as **admin** → call the next ticket for that department, mark the appointment complete.
-3. The patient's queue widget updates within 5 seconds — no page refresh (polls `queue_status.php`).
+2. Log out, log in as **doctor/admin** → add a checkup record and its structured prescription.
+3. Log back in as **patient** → request fulfillment from the Pharmacy section and track its status.
+4. As **admin**, mark the request ready for pickup and then collected. The patient's queue widget also updates within 5 seconds without a page refresh.
+
+Pharmacy requests use only clinician-entered prescriptions linked to a checkup. They are internal pickup requests; the portal does not process payment, delivery, or external pharmacy transactions.
 
 
 
@@ -81,11 +125,11 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `db.php` | MySQL connection + shared config (edit credentials here) |
 | `auth.php` | Session/login helpers + CSRF protection (`csrf_field()` / `verify_csrf()`) |
 | `login.php` / `register.php` / `logout.php` | Authentication |
-| `index.php` | Patient dashboard — book/cancel appointments, queue status, records |
+| `index.php` | Patient dashboard — appointments, queue status, medical records, prescription fulfillment requests |
 | `export_records.php` | Authenticated patient download of all medical records as a PDF |
 | `profile.php` | Patient profile |
 | `settings.php` | Notification preferences and password change |
-| `admin.php` | Staff/admin dashboard — appointments, queue control, records |
+| `admin.php` | Staff/admin dashboard — appointments, queue control, records, prescription entry, pharmacy order status |
 | `get_slots.php` | AJAX: which appointment slots are free for a doctor/date |
 | `queue_status.php` | AJAX: live per-department queue numbers (polled every 5s) |
 | `queue_helpers.php` | Shared queue read/write logic used by every page |
@@ -102,7 +146,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 - One `users` table with a `role` column (`patient`, `doctor`, `admin`); `patients` and `doctors` tables hold role-specific fields linked via `user_id`.
 - `auth.php`'s `require_role([...])` guards every protected page — wrong role bounces you to your own dashboard, logged-out bounces you to `login.php`.
 - Passwords use PHP's `password_hash()` / `password_verify()` — never stored in plain text.
-- Every data-changing form (login, register, book/cancel, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
+- Every data-changing form (login, register, book/cancel, pharmacy requests, profile, settings, admin actions) is protected by a CSRF token (`csrf_field()` + `verify_csrf()`), so another site can't silently submit forms on a logged-in user's behalf.
 - The session cookie is `HttpOnly` + `SameSite=Lax`. Once served over HTTPS, uncomment `'secure' => true` in `auth.php`'s `session_set_cookie_params()`.
 - Ticket numbers start at #1 and reset per department per calendar day. A call marks one appointment as `Called`; it does not advance all patients sharing the queue.
 - Queue tickets display a department prefix and a number padded to at least two digits (for example, `GM01` for General Medicine and `N01` for Neurology); the database retains numeric ticket values for ordering.
