@@ -225,24 +225,26 @@ $doctors = $pdo->query(
         </section>
 
         <section class="card-custom mb-4" id="doctor-directory">
-            <div class="card-header-custom">
+            <div class="card-header-custom flex-wrap gap-2">
                 <div>
                     <h5 class="manrope-700 mb-0">Doctors (<?= count($doctors) ?>)</h5>
                     <small class="text-muted">Hospital doctor contact and department information.</small>
                 </div>
+                <input type="search" class="form-control form-control-custom table-search-bar" id="doctorDirectorySearch" placeholder="Search doctors...">
             </div>
             <div class="card-body-custom">
                 <div class="records-table-container">
                     <table class="records-table">
                         <thead><tr><th>Doctor</th><th>Doctor code</th><th>Department</th><th>Email</th><th>Phone</th></tr></thead>
-                        <tbody>
+                        <tbody id="doctorDirectoryEntries">
                             <?php if (!$doctors): ?><tr><td colspan="5" class="text-muted text-center py-3">No doctors were found.</td></tr><?php endif; ?>
                             <?php foreach ($doctors as $doctor): ?>
-                                <tr><td><?= htmlspecialchars($doctor['full_name']) ?></td><td><?= htmlspecialchars($doctor['doctor_code']) ?></td><td><?= htmlspecialchars($doctor['department']) ?></td><td><?= htmlspecialchars($doctor['email']) ?></td><td><?= htmlspecialchars($doctor['phone'] ?: '—') ?></td></tr>
+                                <tr class="doctor-directory-entry"><td><?= htmlspecialchars($doctor['full_name']) ?></td><td><?= htmlspecialchars($doctor['doctor_code']) ?></td><td><?= htmlspecialchars($doctor['department']) ?></td><td><?= htmlspecialchars($doctor['email']) ?></td><td><?= htmlspecialchars($doctor['phone'] ?: '—') ?></td></tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+                <p class="text-muted text-center py-3 mb-0 d-none" id="doctorDirectoryNoResults">No doctors match that search.</p>
             </div>
         </section>
     </main>

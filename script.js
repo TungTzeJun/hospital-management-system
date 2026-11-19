@@ -663,6 +663,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const doctorDirectorySearch = document.getElementById('doctorDirectorySearch');
+    const doctorDirectoryNoResults = document.getElementById('doctorDirectoryNoResults');
+    if (doctorDirectorySearch) {
+        doctorDirectorySearch.addEventListener('input', () => {
+            const query = doctorDirectorySearch.value.trim().toLowerCase();
+            const entries = document.querySelectorAll('.doctor-directory-entry');
+            let visibleCount = 0;
+
+            entries.forEach(entry => {
+                const matches = entry.textContent.toLowerCase().includes(query);
+                entry.hidden = !matches;
+                if (matches) visibleCount++;
+            });
+
+            if (doctorDirectoryNoResults) {
+                doctorDirectoryNoResults.classList.toggle('d-none', visibleCount > 0);
+            }
+        });
+    }
+
     // View Medical Record modal
     document.querySelectorAll('.view-record-btn').forEach(btn => {
         btn.addEventListener('click', () => {
