@@ -340,6 +340,23 @@ foreach ($queueDepartments as $dept) {
     $totalWaitingAllDepts += $waitingHere;
 }
 
+$doctorQueueAppointments = [];
+if ($isDoctor) {
+    $stmt = $pdo->prepare(
+        "SELECT a.ticket_number, a.appt_time, a.reason, a.status,
+                p.patient_code, u.full_name AS patient_name
+         FROM appointments a
+         JOIN patients p ON p.id = a.patient_id
+         JOIN users u ON u.id = p.user_id
+         JOIN doctors d ON d.id = a.doctor_id
+         WHERE d.department = ? AND a.appt_date = CURDATE()
+           AND a.status IN ('Confirmed', 'Pending', 'Arrived', 'Called')
+         ORDER BY a.ticket_number ASC, a.appt_time ASC, a.id ASC"
+    );
+    $stmt->execute([$myDepartment]);
+    $doctorQueueAppointments = $stmt->fetchAll();
+}
+
 $recordsSql = "SELECT mr.*, p.patient_code, u1.full_name AS patient_name, u2.full_name AS doctor_name
                 FROM medical_records mr
                 JOIN patients p ON p.id = mr.patient_id
@@ -794,6 +811,32 @@ function statusBadge(string $status): string {
                                 </form>
                             </div>
                         </div>
+                        <?php if ($isDoctor): ?>
+                            <div class="mt-3">
+                                <h6 class="manrope-700">Today's Queue Appointments</h6>
+                                <div class="records-table-container">
+                                    <table class="records-table">
+                                        <thead>
+                                            <tr><th>Ticket</th><th>Patient</th><th>Time</th><th>Reason</th><th>Status</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php if (!$doctorQueueAppointments): ?>
+                                                <tr><td colspan="5" class="text-muted text-center py-3">No active appointments in today's queue.</td></tr>
+                                            <?php endif; ?>
+                                            <?php foreach ($doctorQueueAppointments as $appointment): ?>
+                                                <tr>
+                                                    <td><strong><?= htmlspecialchars(format_department_ticket($dq['department'], $appointment['ticket_number'] !== null ? (int) $appointment['ticket_number'] : null)) ?></strong></td>
+                                                    <td><?= htmlspecialchars($appointment['patient_name']) ?><br><small class="text-muted">Patient #<?= htmlspecialchars($appointment['patient_code']) ?></small></td>
+                                                    <td><?= htmlspecialchars($appointment['appt_time']) ?></td>
+                                                    <td><?= htmlspecialchars($appointment['reason'] ?: '—') ?></td>
+                                                    <td><span class="badge <?= statusBadge($appointment['status']) ?>"><?= htmlspecialchars($appointment['status']) ?></span></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>

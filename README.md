@@ -130,7 +130,7 @@ Something not working? Jump to **[Troubleshooting](#-troubleshooting)**.
 | `export_records.php` | Authenticated patient download of all medical records as a PDF |
 | `profile.php` | Patient profile |
 | `settings.php` | Notification preferences and password change |
-| `admin.php` | Doctor dashboard — department appointments, queue control, and clinical records/prescriptions |
+| `admin.php` | Doctor dashboard — department appointments, queue control with today's patient details, and clinical records/prescriptions |
 | `admin_directory.php` | Read-only admin directory — hospital-wide patient history and doctor contact information |
 | `pharmacist.php` | Pharmacy staff dashboard — medication pickup request status only |
 | `get_slots.php` | AJAX: which appointment slots are free for a doctor/date |
